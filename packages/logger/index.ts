@@ -1,0 +1,2 @@
+// @devsync/logger
+export {};

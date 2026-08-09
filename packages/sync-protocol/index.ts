@@ -1,0 +1,2 @@
+// @devsync/sync-protocol
+export {};

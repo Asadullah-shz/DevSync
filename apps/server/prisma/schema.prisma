@@ -1,0 +1,195 @@
+datasource db {
+  provider = "mongodb"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String    @id @map("_id")
+  email     String    @unique
+  name      String
+  password  String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  
+  sessions          Session[]
+  devices           Device[]
+  workspaceMembers  WorkspaceMember[]
+  auditLogs         AuditLog[]
+}
+
+model Session {
+  id        String   @id @map("_id")
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Device {
+  id              String   @id @map("_id")
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  deviceName      String
+  hostname        String
+  platform        String
+  platformVersion String
+  appVersion      String
+  lastIp          String?
+  lastSeenAt      DateTime @default(now())
+  registeredAt    DateTime @default(now())
+  revokedAt       DateTime?
+  status          String   @default("PENDING")
+  
+  deviceKeys      DeviceKey[]
+  projectDevices  ProjectDevice[]
+}
+
+model DeviceKey {
+  id        String   @id @map("_id")
+  deviceId  String
+  device    Device   @relation(fields: [deviceId], references: [id])
+  publicKey String
+  createdAt DateTime @default(now())
+}
+
+model Workspace {
+  id        String   @id @map("_id")
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members   WorkspaceMember[]
+  projects  Project[]
+}
+
+model WorkspaceMember {
+  id          String    @id @map("_id")
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  role        String    @default("VIEWER")
+  createdAt   DateTime  @default(now())
+}
+
+model Project {
+  id          String    @id @map("_id")
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  name        String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  projectDevices ProjectDevice[]
+  files          File[]
+  snapshots      Snapshot[]
+  syncOps        SyncOperation[]
+  conflicts      Conflict[]
+}
+
+model ProjectDevice {
+  id               String   @id @map("_id")
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id])
+  deviceId         String
+  device           Device   @relation(fields: [deviceId], references: [id])
+  localPath        String
+  lastSyncCursor   String?
+  syncStatus       String   @default("ACTIVE")
+  createdAt        DateTime @default(now())
+}
+
+model File {
+  id          String   @id @map("_id")
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  path        String
+  hash        String
+  size        Int
+  modifiedAt  DateTime
+  isDeleted   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  versions    FileVersion[]
+}
+
+model FileVersion {
+  id        String   @id @map("_id")
+  fileId    String
+  file      File     @relation(fields: [fileId], references: [id])
+  hash      String
+  size      Int
+  version   Int
+  createdBy String
+  deviceId  String
+  createdAt DateTime @default(now())
+}
+
+model Snapshot {
+  id        String   @id @map("_id")
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdBy String
+  createdAt DateTime @default(now())
+  
+  files     SnapshotFile[]
+}
+
+model SnapshotFile {
+  id         String   @id @map("_id")
+  snapshotId String
+  snapshot   Snapshot @relation(fields: [snapshotId], references: [id])
+  path       String
+  hash       String
+  version    Int
+}
+
+model SyncOperation {
+  id          String   @id @map("_id")
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  deviceId    String
+  userId      String
+  type        String
+  path        String
+  hash        String?
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+}
+
+model Conflict {
+  id              String   @id @map("_id")
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id])
+  fileId          String
+  baseVersionHash String
+  deviceA         String
+  deviceB         String
+  status          String   @default("UNRESOLVED")
+  createdAt       DateTime @default(now())
+}
+
+model BackupJob {
+  id          String   @id @map("_id")
+  status      String   @default("IN_PROGRESS")
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  size        Int?
+  objects     Int?
+}
+
+model AuditLog {
+  id        String   @id @map("_id")
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  deviceId  String?
+  action    String
+  details   String
+  ipAddress String?
+  createdAt DateTime @default(now())
+}

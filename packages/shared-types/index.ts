@@ -1,0 +1,2 @@
+// @devsync/shared-types
+export {};
