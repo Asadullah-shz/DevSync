@@ -17,10 +17,8 @@ function createWindow() {
   });
 
   // Check if we are in dev mode (Vite running)
-  const isDev = process.argv.includes('--dev');
-  
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+  if (process.argv.includes('--dev')) {
+    mainWindow.loadURL('http://localhost:5180');
     mainWindow.webContents.openDevTools();
   } else {
     // In production, load the built React app
