@@ -29,3 +29,4 @@ backups/
 # Cloudflare Tunnel credentials (sensitive)
 tunnel/*.json
 tunnel/cert.pem
+DevSync — Implementation Plan.md
