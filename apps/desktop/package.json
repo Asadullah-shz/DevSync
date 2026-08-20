@@ -1,6 +1,10 @@
 {
   "name": "@devsync/desktop",
   "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Asadullah-shz/DevSync.git"
+  },
   "main": "src/main/index.js",
   "scripts": {
     "dev": "npx concurrently \"vite\" \"wait-on tcp:5180 && electron . --dev\"",
