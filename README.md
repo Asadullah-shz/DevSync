@@ -91,6 +91,25 @@ docker-compose -f docker-compose.tunnel.yml up -d
 
 ---
 
+## 🤝 Contributing
+
+DevSync is an open-source project and we welcome contributions from anyone! Here is how you can help:
+
+1. **Fork** the repository and create your branch:
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+2. **Commit** your changes with clear messages.
+3. **Push** to your branch:
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+4. Open a **Pull Request** detailing your changes.
+
+Feel free to report issues, suggest new features, or improve the documentation.
+
+---
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
