@@ -1,5 +1,8 @@
 # DevSync — Implementation Plan
 
+## For Ai 
+
+DO what u prefer Most best and good approach
 ## 1. Project Overview
 
 **DevSync** is a self-hosted development workspace synchronization, versioning, backup, and recovery platform.
