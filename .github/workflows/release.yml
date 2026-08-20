@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 jobs:
-  build-and-release-desktop:
+  build-desktop:
     name: Build & Release Desktop (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     permissions:
@@ -34,15 +34,63 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create or Update GitHub Release
+      - name: Upload Desktop Artifacts to Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             apps/desktop/dist-package/*.exe
             apps/desktop/dist-package/*.dmg
             apps/desktop/dist-package/*.AppImage
-            apps/desktop/dist-package/*.blockmap
             apps/desktop/dist-package/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-server:
+    name: Package & Release Server
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Package Server Bundle
+        run: |
+          mkdir -p dist-server/devsync-server
+          # Copy server, shared packages, docker configuration, and setup guide
+          cp -r apps/server dist-server/devsync-server/
+          cp -r packages dist-server/devsync-server/
+          cp -r tunnel dist-server/devsync-server/
+          cp Caddyfile dist-server/devsync-server/
+          cp docker-compose.yml dist-server/devsync-server/
+          cp docker-compose.tunnel.yml dist-server/devsync-server/
+          cp package.json dist-server/devsync-server/
+          cp package-lock.json dist-server/devsync-server/
+          cp .env.example dist-server/devsync-server/
+          cp setup_guide.md dist-server/devsync-server/
+          
+          # Clean up node_modules and development caches in the copied directory
+          rm -rf dist-server/devsync-server/apps/server/node_modules
+          rm -rf dist-server/devsync-server/node_modules
+          
+          # Compress the bundle
+          cd dist-server
+          zip -r devsync-server.zip devsync-server
+          cd ..
+
+      - name: Upload Server Bundle to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist-server/devsync-server.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
