@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { db } from '../../database/db.js';
+import { AuditService } from '../audit/audit.service.js';
 
 interface AuthRequest extends Request {
   user?: any;
@@ -132,6 +133,13 @@ export const revokeDevice = async (req: AuthRequest, res: Response, next: NextFu
 
     await db.session.deleteMany({
       where: { deviceId: req.params.id, userId: req.user.id }
+    });
+
+    await AuditService.logAction({
+      userId: req.user.id,
+      action: 'DEVICE_REVOKED',
+      details: `Revoked device ${device.deviceName} (${device.id})`,
+      ipAddress: req.ip
     });
 
     res.json({ device: revokedDevice, success: true });

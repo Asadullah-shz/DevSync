@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { db } from '../../database/db.js';
+import { AuditService } from '../audit/audit.service.js';
 
 interface AuthRequest extends Request {
   user?: any;
@@ -24,6 +25,10 @@ export const createProject = async (req: AuthRequest, res: Response, next: NextF
     if (!member) {
       return res.status(403).json({ error: { message: 'Forbidden: You are not a member of this workspace' } });
     }
+    
+    if (member.role !== 'OWNER' && member.role !== 'ADMIN') {
+      return res.status(403).json({ error: { message: 'Insufficient permissions for this action' } });
+    }
 
     const projectId = `PRJ-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
@@ -33,6 +38,13 @@ export const createProject = async (req: AuthRequest, res: Response, next: NextF
         name: data.name,
         workspaceId: data.workspaceId,
       }
+    });
+
+    await AuditService.logAction({
+      userId: req.user.id,
+      action: 'PROJECT_CREATED',
+      details: `Created project ${data.name} (${projectId}) in workspace ${data.workspaceId}`,
+      ipAddress: req.ip
     });
 
     res.status(201).json({ project });
@@ -130,6 +142,13 @@ export const deleteProject = async (req: AuthRequest, res: Response, next: NextF
     // Let's assume Prisma doesn't block it or we do it manually.
     await db.projectDevice.deleteMany({ where: { projectId: id } });
     await db.project.delete({ where: { id } });
+
+    await AuditService.logAction({
+      userId: req.user.id,
+      action: 'PROJECT_DELETED',
+      details: `Deleted project ${project.name} (${id})`,
+      ipAddress: req.ip
+    });
 
     res.json({ success: true });
   } catch (err) {

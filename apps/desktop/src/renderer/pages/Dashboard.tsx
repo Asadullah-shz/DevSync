@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useStore, SyncEvent } from '../store';
-import { LogOut, FolderSync, Plus, HardDrive, Settings, FileCode, CheckCircle2, AlertCircle, Trash2, Activity } from 'lucide-react';
+import { LogOut, FolderSync, Plus, HardDrive, Settings, FileCode, CheckCircle2, AlertCircle, Trash2, Activity, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const Dashboard: React.FC = () => {
@@ -25,6 +25,8 @@ export const Dashboard: React.FC = () => {
   const [scanResult, setScanResult] = useState<any>(null);
 
   const [showActivity, setShowActivity] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [isLoadingAudit, setIsLoadingAudit] = useState(false);
   const [projectHistory, setProjectHistory] = useState<any[]>([]);
   const [isLoadingActivity, setIsLoadingActivity] = useState(false);
 
@@ -37,6 +39,12 @@ export const Dashboard: React.FC = () => {
   // Mass-delete warning state
   const [massDeleteCount, setMassDeleteCount] = useState<number | null>(null);
   const [isMassDeleteResolving, setIsMassDeleteResolving] = useState(false);
+
+  // Team Management state
+  const [showTeam, setShowTeam] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('VIEWER');
+  const [isInviting, setIsInviting] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -98,14 +106,14 @@ export const Dashboard: React.FC = () => {
 
       // Tray deep-link listeners
       window.electronAPI.onTrayOpenConflicts(() => {
-        // Scroll to / open conflicts panel — for now just show the window
+        
       });
       window.electronAPI.onTrayOpenDevices(() => {
         setShowDevices(true);
         loadDevices();
       });
 
-      // Mass-delete circuit-breaker listener
+     
       window.electronAPI.onMassDeleteWarning((count: number) => {
         setMassDeleteCount(count);
       });
@@ -147,7 +155,7 @@ export const Dashboard: React.FC = () => {
           };
           addProject(newProject);
           
-          // Auto-start watching
+
           window.electronAPI.startWatching(newProject.id, folderPath);
           setIsWatching(prev => ({ ...prev, [newProject.id]: true }));
         } else {
@@ -166,8 +174,7 @@ export const Dashboard: React.FC = () => {
     }
 
     if (isWatching[project.id]) {
-      // In a real app we'd need a specific stop/unwatch for a project, 
-      // but the watcher service only handles one for now.
+   
       window.electronAPI?.stopWatching();
       setIsWatching(prev => ({ ...prev, [project.id]: false }));
     } else {
@@ -181,8 +188,8 @@ export const Dashboard: React.FC = () => {
     try {
       setHistoryVersions([]);
       const res = await window.electronAPI.getProjectHistory(projectId);
-      if (res.success && res.versions) {
-        setHistoryVersions(res.versions);
+      if (res.success && res.history) {
+        setHistoryVersions(res.history);
       }
     } catch (e) {
       console.error(e);
@@ -217,7 +224,7 @@ export const Dashboard: React.FC = () => {
       const res = await window.electronAPI.getConflicts(projectId);
       if (res.success && res.conflicts) {
         setProjectConflicts(res.conflicts);
-        // Update tray to reflect conflict state
+       
         if (res.conflicts.length > 0) {
           window.electronAPI.setTrayStatus('CONFLICT').catch(() => {});
         } else {
@@ -348,7 +355,7 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="app-container" style={{ flexDirection: 'column' }}>
       
-      {/* Top Navigation */}
+     
       <header className="glass-panel" style={{ 
         margin: '16px', 
         padding: '16px 24px', 
@@ -379,10 +386,10 @@ export const Dashboard: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Content Area */}
+   
       <main style={{ padding: '0 16px', display: 'flex', gap: '16px', flex: 1, overflow: 'hidden', marginBottom: '16px' }}>
         
-        {/* Sidebar */}
+     
         <aside className="glass-panel" style={{ width: '250px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ padding: '8px 12px', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.05em', marginTop: '8px' }}>
             Workspaces
@@ -411,7 +418,28 @@ export const Dashboard: React.FC = () => {
             <span style={{ fontSize: '0.875rem' }}>Storage Health</span>
           </div>
 
-          {/* Storage Usage Bar */}
+          <div 
+            style={{ padding: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}
+            onClick={() => { setShowTeam(true); }}
+          >
+            <Users size={16} />
+            <span style={{ fontSize: '0.875rem' }}>Workspace Team</span>
+          </div>
+
+          <div 
+            style={{ padding: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}
+            onClick={async () => { 
+              setShowActivity(true); 
+              setIsLoadingAudit(true);
+              const res = await window.electronAPI.getGlobalAuditLogs();
+              if (res.success && res.logs) setAuditLogs(res.logs);
+              setIsLoadingAudit(false);
+            }}
+          >
+            <Activity size={16} />
+            <span style={{ fontSize: '0.875rem' }}>System Activity</span>
+          </div>
+
           <div style={{ marginTop: 'auto', borderTop: '1px solid var(--glass-border)', paddingTop: '16px' }}>
             {storageStats && (
               <div style={{ padding: '0 12px 12px' }}>
@@ -425,7 +453,7 @@ export const Dashboard: React.FC = () => {
               </div>
             )}
 
-            {/* Mini Live Log */}
+  
             <div style={{ padding: '0 12px', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '12px' }}>
               Recent Activity
             </div>
@@ -448,7 +476,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </aside>
 
-        {/* Content */}
+  
         <section className="glass-panel" style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <h2>Sync Projects</h2>
@@ -540,7 +568,7 @@ export const Dashboard: React.FC = () => {
 
       </main>
 
-      {/* History Modal */}
+
       {showHistoryFor && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div className="glass-panel" style={{ width: '800px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '24px', background: 'var(--bg-primary)' }}>
@@ -593,7 +621,6 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Conflicts Modal */}
       {showConflictsFor && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div className="glass-panel" style={{ width: '800px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '24px', background: 'var(--bg-primary)' }}>
@@ -654,7 +681,7 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Devices Modal */}
+  
       {showDevices && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div className="glass-panel" style={{ width: '800px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '24px', background: 'var(--bg-primary)' }}>
@@ -720,7 +747,7 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Storage Health Modal */}
+
       {showStorageHealth && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div className="glass-panel" style={{ width: '600px', display: 'flex', flexDirection: 'column', padding: '24px', background: 'var(--bg-primary)' }}>
@@ -786,7 +813,7 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Activity Modal */}
+   
       {showActivity && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div className="glass-panel" style={{ width: '800px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '24px', background: 'var(--bg-primary)' }}>
@@ -833,7 +860,7 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Trash Modal */}
+   
       {showTrash && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div className="glass-panel" style={{ width: '800px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '24px', background: 'var(--bg-primary)' }}>
@@ -884,7 +911,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       )}
-      {/* ── Mass-Delete Warning Modal ── */}
+
       {massDeleteCount !== null && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
@@ -936,6 +963,181 @@ export const Dashboard: React.FC = () => {
             <p style={{ marginTop: '16px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               Pause Sync keeps files safe on the server. Continue will propagate all deletions.
             </p>
+          </div>
+        </div>
+      )}
+
+  
+      {showTeam && workspaces.length > 0 && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, animation: 'fadeIn 0.2s ease' }}>
+          <div className="glass-panel" style={{ width: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Users size={20} color="var(--accent-primary)" /> Workspace Team</h2>
+              <button className="btn btn-secondary" onClick={() => setShowTeam(false)}>Close</button>
+            </div>
+            
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+           
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '0.875rem', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '12px' }}>Current Members</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {workspaces[0]?.members?.map((m: any) => (
+                    <div key={m.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{m.user?.name || m.user?.email}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{m.user?.email}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {m.role === 'OWNER' ? (
+                          <span style={{ fontSize: '0.75rem', padding: '4px 8px', borderRadius: '4px', background: 'var(--accent-glow)', color: 'var(--accent-primary)', fontWeight: 600 }}>OWNER</span>
+                        ) : (
+                          <select 
+                            style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--glass-border)', borderRadius: '4px', padding: '4px 8px', fontSize: '0.75rem' }}
+                            value={m.role}
+                            onChange={async (e) => {
+                              const res = await window.electronAPI.updateWorkspaceMemberRole(workspaces[0].id, m.userId, e.target.value);
+                              if (res.success) {
+                                const wsData = await window.electronAPI.getWorkspaces();
+                                if (wsData.success && wsData.workspaces) setWorkspaces(wsData.workspaces);
+                              } else {
+                                alert(res.error || 'Failed to update role');
+                              }
+                            }}
+                          >
+                            <option value="ADMIN">ADMIN</option>
+                            <option value="EDITOR">EDITOR</option>
+                            <option value="VIEWER">VIEWER</option>
+                          </select>
+                        )}
+                        {m.role !== 'OWNER' && (
+                          <button 
+                            className="btn" 
+                            style={{ padding: '4px', color: 'var(--error)' }}
+                            onClick={async () => {
+                              if (!confirm('Remove member?')) return;
+                              const res = await window.electronAPI.removeWorkspaceMember(workspaces[0].id, m.userId);
+                              if (res.success) {
+                                const wsData = await window.electronAPI.getWorkspaces();
+                                if (wsData.success && wsData.workspaces) setWorkspaces(wsData.workspaces);
+                              } else {
+                                alert(res.error || 'Failed to remove member');
+                              }
+                            }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {(!workspaces[0]?.members || workspaces[0].members.length === 0) && (
+                    <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>No members found.</div>
+                  )}
+                </div>
+              </div>
+
+             
+              <div>
+                <h3 style={{ fontSize: '0.875rem', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '12px' }}>Invite Member</h3>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input 
+                    type="email" 
+                    placeholder="Email address..." 
+                    className="input" 
+                    style={{ flex: 1 }}
+                    value={inviteEmail}
+                    onChange={e => setInviteEmail(e.target.value)}
+                  />
+                  <select 
+                    className="input"
+                    value={inviteRole}
+                    onChange={e => setInviteRole(e.target.value)}
+                  >
+                    <option value="ADMIN">ADMIN</option>
+                    <option value="EDITOR">EDITOR</option>
+                    <option value="VIEWER">VIEWER</option>
+                  </select>
+                  <button 
+                    className="btn btn-primary"
+                    disabled={isInviting || !inviteEmail}
+                    onClick={async () => {
+                      setIsInviting(true);
+                      const res = await window.electronAPI.addWorkspaceMember(workspaces[0].id, inviteEmail, inviteRole);
+                      setIsInviting(false);
+                      if (res.success) {
+                        setInviteEmail('');
+                        const wsData = await window.electronAPI.getWorkspaces();
+                        if (wsData.success && wsData.workspaces) setWorkspaces(wsData.workspaces);
+                      } else {
+                        alert(res.error || 'Failed to invite member');
+                      }
+                    }}
+                  >
+                    {isInviting ? 'Inviting...' : 'Invite'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+     
+      {showActivity && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, animation: 'fadeIn 0.2s ease' }}>
+          <div className="glass-panel" style={{ width: '800px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={20} color="var(--accent-primary)" /> System Activity Logs</h2>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  className="btn btn-secondary" 
+                  onClick={async () => {
+                    setIsLoadingAudit(true);
+                    const res = await window.electronAPI.getGlobalAuditLogs();
+                    if (res.success && res.logs) setAuditLogs(res.logs);
+                    setIsLoadingAudit(false);
+                  }}
+                  disabled={isLoadingAudit}
+                >
+                  {isLoadingAudit ? 'Refreshing...' : 'Refresh'}
+                </button>
+                <button className="btn btn-secondary" onClick={() => setShowActivity(false)}>Close</button>
+              </div>
+            </div>
+            
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--glass-border)' }}>
+                    <th style={{ padding: '8px' }}>Timestamp</th>
+                    <th style={{ padding: '8px' }}>Action</th>
+                    <th style={{ padding: '8px' }}>User</th>
+                    <th style={{ padding: '8px' }}>Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditLogs.map(log => (
+                    <tr key={log.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                      <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>{new Date(log.createdAt).toLocaleString()}</td>
+                      <td style={{ padding: '8px', color: 'var(--accent-primary)', fontWeight: 500 }}>{log.action}</td>
+                      <td style={{ padding: '8px' }}>{log.user?.email || 'System'}</td>
+                      <td style={{ padding: '8px' }}>
+                        <div style={{ maxHeight: '60px', overflowY: 'auto', fontSize: '0.75rem', background: 'var(--bg-tertiary)', padding: '4px 8px', borderRadius: '4px' }}>
+                          <pre style={{ margin: 0, fontFamily: 'monospace' }}>{JSON.stringify(log.details, null, 2)}</pre>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {auditLogs.length === 0 && !isLoadingAudit && (
+                    <tr>
+                      <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        No audit logs available.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

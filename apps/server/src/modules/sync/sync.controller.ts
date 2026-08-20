@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { db } from '../../database/db.js';
+import { sanitizeFilePath } from '../../utils/sanitize.js';
 
 interface AuthRequest extends Request {
   user?: any;
@@ -25,7 +26,10 @@ export const processOperations = async (req: AuthRequest, res: Response, next: N
     const data = syncOperationSchema.parse(req.body);
 
     // Verify user is part of the workspace that owns this project
-    const project = await db.project.findUnique({ where: { id: projectId } });
+    const project = await db.project.findUnique({ 
+      where: { id: projectId },
+      include: { workspace: true }
+    });
     if (!project) return res.status(404).json({ error: { message: 'Project not found' } });
 
     const member = await db.workspaceMember.findFirst({
@@ -33,11 +37,43 @@ export const processOperations = async (req: AuthRequest, res: Response, next: N
     });
     if (!member) return res.status(403).json({ error: { message: 'Forbidden' } });
 
+    // ENFORCE POLICY: requireDeviceApproval
+    if (project.workspace.requireDeviceApproval) {
+      const device = await db.device.findUnique({ where: { id: data.deviceId } });
+      if (!device || device.status !== 'APPROVED') {
+        return res.status(403).json({ error: { message: 'Forbidden: Device requires admin approval to sync to this workspace' } });
+      }
+    }
+
+    // ENFORCE POLICY: storageQuotaBytes
+    if (project.workspace.storageQuotaBytes !== null) {
+      // Calculate current storage for this workspace
+      // For simplicity, we sum the latest version sizes of all files in all projects of the workspace
+      const allWorkspaceProjects = await db.project.findMany({
+        where: { workspaceId: project.workspaceId },
+        select: { id: true }
+      });
+      const projectIds = allWorkspaceProjects.map(p => p.id);
+      
+      const files = await db.file.findMany({
+        where: { projectId: { in: projectIds }, isDeleted: false },
+        select: { size: true }
+      });
+      
+      const currentUsage = files.reduce((acc, f) => acc + f.size, 0);
+      const incomingSize = data.operations.reduce((acc, op) => acc + (op.size || 0), 0);
+      
+      if (currentUsage + incomingSize > project.workspace.storageQuotaBytes) {
+        return res.status(507).json({ error: { message: 'Insufficient Storage: Workspace storage quota exceeded' } });
+      }
+    }
+
     const results = [];
 
     // Process each operation sequentially for safety, though a transaction would be better in prod
     for (const op of data.operations) {
       const opId = `OP-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+      const safePath = sanitizeFilePath(op.path);
       
       // Upsert the SyncOperation record
       const syncOp = await db.syncOperation.create({
@@ -47,7 +83,7 @@ export const processOperations = async (req: AuthRequest, res: Response, next: N
           deviceId: data.deviceId,
           userId: req.user.id,
           type: op.type,
-          path: op.path,
+          path: safePath,
           hash: op.hash,
           status: 'APPLIED',
           createdAt: new Date(op.timestamp)
@@ -60,9 +96,29 @@ export const processOperations = async (req: AuthRequest, res: Response, next: N
           throw new Error('CREATE/MODIFY operations require hash and size');
         }
 
-     
-        const fileIdRaw = `${projectId}:${op.path}`;
+        const fileIdRaw = `${projectId}:${safePath}`;
         const fileId = `FILE-${crypto.createHash('md5').update(fileIdRaw).digest('hex').substring(0, 8).toUpperCase()}`;
+
+        const storageQuotaMb = parseFloat(process.env.STORAGE_QUOTA_MB || '100');
+        const maxQuotaBytes = storageQuotaMb * 1024 * 1024;
+
+        const totalActiveSize = await db.file.aggregate({
+          _sum: { size: true },
+          where: { projectId, isDeleted: false }
+        });
+        const currentSize = totalActiveSize._sum.size || 0;
+
+        const existingFile = await db.file.findUnique({ where: { id: fileId } });
+        const existingSize = (existingFile && !existingFile.isDeleted) ? existingFile.size : 0;
+        const sizeDiff = op.size - existingSize;
+
+        if (currentSize + sizeDiff > maxQuotaBytes) {
+          return res.status(413).json({
+            error: {
+              message: `Storage quota exceeded. Project limit: ${storageQuotaMb} MB. Current: ${(currentSize / 1024 / 1024).toFixed(2)} MB. Required diff: ${(sizeDiff / 1024 / 1024).toFixed(2)} MB.`
+            }
+          });
+        }
 
   
         const latestVersion = await db.fileVersion.findFirst({
@@ -80,7 +136,7 @@ export const processOperations = async (req: AuthRequest, res: Response, next: N
                 id: conflictId,
                 projectId,
                 fileId,
-                path: op.path,
+                path: safePath,
                 baseVersionHash: latestVersion.hash,
                 incomingHash: op.hash,
                 deviceA: latestVersion.deviceId,
@@ -103,7 +159,7 @@ export const processOperations = async (req: AuthRequest, res: Response, next: N
           create: {
             id: fileId,
             projectId,
-            path: op.path,
+            path: safePath,
             hash: op.hash,
             size: op.size,
             modifiedAt: new Date(op.timestamp),
@@ -134,7 +190,7 @@ export const processOperations = async (req: AuthRequest, res: Response, next: N
           }
         });
       } else if (op.type === 'DELETE') {
-        const fileIdRaw = `${projectId}:${op.path}`;
+        const fileIdRaw = `${projectId}:${safePath}`;
         const fileId = `FILE-${crypto.createHash('md5').update(fileIdRaw).digest('hex').substring(0, 8).toUpperCase()}`;
 
         await db.file.updateMany({

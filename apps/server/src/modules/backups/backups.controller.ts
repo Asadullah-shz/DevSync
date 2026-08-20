@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { db } from '../../database/db.js';
-import { BackupService } from './backups.service.js';
+import { BackupService } from './backup.service.js';
 
 interface AuthRequest extends Request {
   user?: any;

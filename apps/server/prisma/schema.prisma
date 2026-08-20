@@ -10,8 +10,11 @@ generator client {
 model User {
   id        String    @id @map("_id")
   email     String    @unique
-  name      String
-  password  String
+  name        String
+  password    String?
+  ssoProvider   String?
+  ssoId         String?
+  isSystemAdmin Boolean   @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   
@@ -59,10 +62,13 @@ model DeviceKey {
 }
 
 model Workspace {
-  id        String   @id @map("_id")
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                    String   @id @map("_id")
+  name                  String
+  requireDeviceApproval Boolean  @default(false)
+  storageQuotaBytes     Float?
+  allowExternalSharing  Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   members   WorkspaceMember[]
   projects  Project[]

@@ -27,6 +27,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Project API
   getWorkspaces: () => ipcRenderer.invoke('api:getWorkspaces'),
   createWorkspace: (name) => ipcRenderer.invoke('api:createWorkspace', name),
+  addWorkspaceMember: (workspaceId, email, role) => ipcRenderer.invoke('api:addWorkspaceMember', workspaceId, email, role),
+  updateWorkspaceMemberRole: (workspaceId, userId, role) => ipcRenderer.invoke('api:updateWorkspaceMemberRole', workspaceId, userId, role),
+  removeWorkspaceMember: (workspaceId, userId) => ipcRenderer.invoke('api:removeWorkspaceMember', workspaceId, userId),
   getProjects: () => ipcRenderer.invoke('api:getProjects'),
   createProject: (name, workspaceId, localPath) => ipcRenderer.invoke('api:createProject', name, workspaceId, localPath),
   getLocalProjects: () => ipcRenderer.invoke('db:getLocalProjects'),
@@ -36,6 +39,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restoreFile: (projectId, hash, relativePath) => ipcRenderer.invoke('api:restoreFile', projectId, hash, relativePath),
   getDeletedFiles: (projectId) => ipcRenderer.invoke('api:getDeletedFiles', projectId),
   restoreDeletedFile: (projectId, fileId) => ipcRenderer.invoke('api:restoreDeletedFile', projectId, fileId),
+
+  // Audit Logs
+  getGlobalAuditLogs: () => ipcRenderer.invoke('api:getGlobalAuditLogs'),
+  getProjectAuditLogs: (projectId) => ipcRenderer.invoke('api:getProjectAuditLogs', projectId),
 
   // Conflicts
   getConflicts: (projectId) => ipcRenderer.invoke('api:getConflicts', projectId),

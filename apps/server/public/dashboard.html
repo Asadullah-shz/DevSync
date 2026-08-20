@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DevSync — Server Monitor Dashboard</title>
+  
+  <!-- PWA Setup -->
+  <link rel="manifest" href="/public/manifest.json">
+  <meta name="theme-color" content="#0f0c1b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="/public/icon-192x192.png">
+  <!-- Google Fonts: Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- CSS Styles -->
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0f0c1b 0%, #150f2e 50%, #090514 100%);
+      --accent-glow: rgba(139, 92, 246, 0.15);
+      --purple: #8b5cf6;
+      --purple-light: #a78bfa;
+      --green: #10b981;
+      --blue: #3b82f6;
+      --red: #ef4444;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --glass-bg: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.06);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    body {
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Background Neon Orbs */
+    .orb {
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      filter: blur(150px);
+      z-index: -1;
+      opacity: 0.25;
+    }
+    .orb-1 {
+      top: -100px;
+      left: -100px;
+      background: var(--purple);
+    }
+    .orb-2 {
+      bottom: -150px;
+      right: -100px;
+      background: var(--blue);
+    }
+
+    /* Glass Card Container */
+    .glass-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 24px;
+      padding: 30px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Auth Wrapper */
+    #auth-container {
+      width: 420px;
+      text-align: center;
+    }
+    .auth-title {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      background: linear-gradient(to right, #ffffff, var(--purple-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .auth-subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+    .form-group {
+      margin-bottom: 18px;
+      text-align: left;
+    }
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      display: block;
+    }
+    .form-input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+      transition: all 0.2s;
+    }
+    .form-input:focus {
+      border-color: var(--purple);
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+    }
+    .auth-btn {
+      width: 100%;
+      background: linear-gradient(to right, var(--purple), #7c3aed);
+      border: none;
+      color: #fff;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 10px;
+      box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
+      transition: all 0.2s;
+    }
+    .auth-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px rgba(139, 92, 246, 0.55);
+    }
+    .auth-btn:active {
+      transform: translateY(0);
+    }
+    .error-msg {
+      color: var(--red);
+      font-size: 13px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    /* Main Dashboard View */
+    #dashboard-container {
+      display: none;
+      width: 90%;
+      max-width: 1200px;
+      flex-direction: column;
+      gap: 25px;
+      margin: 40px auto;
+      align-self: flex-start;
+      z-index: 10;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+    }
+    .header-logo {
+      font-size: 32px;
+      font-weight: 800;
+      background: linear-gradient(to right, #ffffff, var(--purple-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+    .header-logo span {
+      font-weight: 300;
+      font-size: 18px;
+      color: var(--text-muted);
+      margin-left: 8px;
+    }
+    .logout-btn {
+      background: transparent;
+      border: 1px solid var(--glass-border);
+      color: var(--text-main);
+      padding: 10px 20px;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .logout-btn:hover {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    /* Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+    }
+    .metric-card {
+      position: relative;
+      overflow: hidden;
+    }
+    .metric-label {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .metric-value {
+      font-size: 36px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+    .metric-subtext {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .status-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green);
+      margin-right: 8px;
+    }
+    .status-down {
+      background: var(--red);
+      box-shadow: 0 0 10px var(--red);
+    }
+
+    /* Graphical Layout */
+    .row-2 {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px) {
+      .row-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+    .chart-card {
+      min-height: 350px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .chart-wrapper {
+      position: relative;
+      width: 100%;
+      height: 250px;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      height: 8px;
+      margin: 10px 0;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--purple);
+      width: 0;
+      transition: width 0.5s ease-out;
+    }
+
+    /* Activity Logs */
+    .log-card {
+      flex: 1;
+    }
+    .log-list {
+      max-height: 220px;
+      overflow-y: auto;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 5px;
+    }
+    .log-list::-webkit-scrollbar {
+      width: 6px;
+    }
+    .log-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+    .log-item {
+      font-size: 13px;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.02);
+      border-left: 3px solid var(--purple);
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .log-time {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Orbs -->
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <!-- AUTHENTICATION FORM CONTAINER -->
+  <div id="auth-container" class="glass-card">
+    <div class="auth-title">DevSync Monitor</div>
+    <div class="auth-subtitle">Log in to view server health and metrics</div>
+    
+    <form id="login-form">
+      <div class="form-group">
+        <label class="form-label" for="email">Admin Email</label>
+        <input class="form-input" type="email" id="email" required placeholder="name@example.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input class="form-input" type="password" id="password" required placeholder="••••••••">
+      </div>
+      <button class="auth-btn" type="submit">Authenticate</button>
+    </form>
+    <div id="login-error" class="error-msg">Invalid credentials. Access denied.</div>
+  </div>
+
+  <!-- MAIN MONITORING DASHBOARD -->
+  <div id="dashboard-container">
+    <header>
+      <div class="header-logo">DevSync <span>Server Monitor</span></div>
+      <button class="logout-btn" id="logout-btn">Disconnect</button>
+    </header>
+
+    <!-- Metrics Row 1 -->
+    <div class="metrics-grid">
+      <!-- Status Card -->
+      <div class="glass-card metric-card">
+        <div class="metric-label">Server Status</div>
+        <div class="metric-value"><span class="status-dot" id="server-status-dot"></span>ONLINE</div>
+        <div class="metric-subtext" id="uptime-text">Uptime: Checking...</div>
+      </div>
+      <!-- CPU Load Card -->
+      <div class="glass-card metric-card">
+        <div class="metric-label">CPU Usage (Load Avg)</div>
+        <div class="metric-value" id="cpu-value">--</div>
+        <div class="metric-subtext" id="cpu-cores-text">Cores: --</div>
+      </div>
+      <!-- RAM Card -->
+      <div class="glass-card metric-card">
+        <div class="metric-label">Memory (RAM)</div>
+        <div class="metric-value" id="ram-value">--</div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" id="ram-progress"></div>
+        </div>
+        <div class="metric-subtext" id="ram-subtext">Free: --</div>
+      </div>
+      <!-- Storage Card -->
+      <div class="glass-card metric-card">
+        <div class="metric-label">Disk Storage Space <span id="disk-alert-badge" style="display:none; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 8px;"></span></div>
+        <div class="metric-value" id="disk-value">--</div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" id="disk-progress" style="background: var(--blue)"></div>
+        </div>
+        <div class="metric-subtext" id="disk-subtext">Usage: --</div>
+      </div>
+    </div>
+
+    <!-- Row 2: DevSync Operational Stats -->
+    <div class="metrics-grid">
+      <div class="glass-card metric-card">
+        <div class="metric-label">Total Projects</div>
+        <div class="metric-value" id="projects-count" style="color: var(--purple-light)">--</div>
+        <div class="metric-subtext">Synchronized workspaces</div>
+      </div>
+      <div class="glass-card metric-card">
+        <div class="metric-label">Total Files</div>
+        <div class="metric-value" id="files-count" style="color: var(--blue)">--</div>
+        <div class="metric-subtext">Tracked across all projects</div>
+      </div>
+      <div class="glass-card metric-card">
+        <div class="metric-label">Total File Versions</div>
+        <div class="metric-value" id="versions-count" style="color: var(--green)">--</div>
+        <div class="metric-subtext">Recoverable history entries</div>
+      </div>
+      <div class="glass-card metric-card">
+        <div class="metric-label">Active Sync Ops</div>
+        <div class="metric-value" id="active-syncs-count" style="color: var(--red)">--</div>
+        <div class="metric-subtext">Operations pending on server</div>
+      </div>
+    </div>
+
+    <!-- Row 3: Chart + DevSync Summary -->
+    <div class="row-2">
+      <!-- Chart Card -->
+      <div class="glass-card chart-card">
+        <div class="metric-label">System Performance History</div>
+        <div class="chart-wrapper">
+          <canvas id="perfChart"></canvas>
+        </div>
+      </div>
+      <!-- Stats Summary Card -->
+      <div class="glass-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+        <div class="metric-label">DevSync Summary</div>
+        <div style="display: flex; flex-direction: column; gap: 12px; margin: 16px 0;">
+          <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+            <span style="color: var(--text-muted)">Total Users</span>
+            <strong id="users-count">--</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+            <span style="color: var(--text-muted)">Active Devices</span>
+            <strong id="devices-count" style="color: var(--green)">--</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+            <span style="color: var(--text-muted)">Total Devices</span>
+            <strong id="total-devices-count">--</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+            <span style="color: var(--text-muted)">Unresolved Conflicts</span>
+            <strong id="conflicts-count" style="color: var(--red)">--</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px;">
+            <span style="color: var(--text-muted)">Completed Backups</span>
+            <strong id="backups-count" style="color: var(--blue)">--</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted)">Failed Backups</span>
+            <strong id="failed-backups-count" style="color: var(--red)">--</strong>
+          </div>
+        </div>
+        <div class="metric-subtext">Refreshed every 5 seconds</div>
+      </div>
+    </div>
+
+    <!-- Row 4: Live Audit Events -->
+    <div class="glass-card log-card">
+      <div class="metric-label" style="margin-bottom: 16px;">Recent Audit Events</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <thead>
+          <tr style="border-bottom: 1px solid var(--glass-border); text-align: left;">
+            <th style="padding: 6px 8px; color: var(--text-muted); font-weight: 600;">Timestamp</th>
+            <th style="padding: 6px 8px; color: var(--text-muted); font-weight: 600;">Action</th>
+            <th style="padding: 6px 8px; color: var(--text-muted); font-weight: 600;">User</th>
+          </tr>
+        </thead>
+        <tbody id="audit-log-body">
+          <tr><td colspan="3" style="padding: 16px 8px; color: var(--text-muted);">Loading audit events...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Dashboard Script Logic -->
+  <script>
+    let token = localStorage.getItem('devsync_dashboard_token');
+    let chartInstance = null;
+    let cpuHistory = [];
+    let ramHistory = [];
+    let labelsHistory = [];
+    let refreshInterval = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (token) {
+        showDashboard();
+      }
+
+      // Handle Authentication
+      const loginForm = document.getElementById('login-form');
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const errorDiv = document.getElementById('login-error');
+
+        try {
+          const res = await fetch('/api/v1/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          });
+
+          const data = await res.json();
+          if (res.ok && data.accessToken) {
+            token = data.accessToken;
+            localStorage.setItem('devsync_dashboard_token', token);
+            errorDiv.style.display = 'none';
+            showDashboard();
+          } else {
+            throw new Error(data.error?.message || 'Login failed');
+          }
+        } catch (err) {
+          errorDiv.style.display = 'block';
+          console.error('[Dashboard Login]', err);
+        }
+      });
+
+      // Handle Logout
+      document.getElementById('logout-btn').addEventListener('click', () => {
+        localStorage.removeItem('devsync_dashboard_token');
+        token = null;
+        clearInterval(refreshInterval);
+        document.getElementById('dashboard-container').style.display = 'none';
+        document.getElementById('auth-container').style.display = 'block';
+        document.body.style.alignItems = 'center';
+      });
+    });
+
+    function showDashboard() {
+      document.getElementById('auth-container').style.display = 'none';
+      const container = document.getElementById('dashboard-container');
+      container.style.display = 'flex';
+      document.body.style.alignItems = 'flex-start';
+
+      initChart();
+      fetchMetrics();
+      refreshInterval = setInterval(fetchMetrics, 5000);
+    }
+
+    async function fetchMetrics() {
+      try {
+        const res = await fetch('/api/v1/health/metrics', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (res.status === 401) {
+          // Token expired or invalid
+          localStorage.removeItem('devsync_dashboard_token');
+          clearInterval(refreshInterval);
+          location.reload();
+          return;
+        }
+
+        const data = await res.json();
+        updateUI(data);
+      } catch (err) {
+        console.error('[Dashboard metrics fetch err]', err);
+        document.getElementById('server-status-dot').className = 'status-dot status-down';
+      }
+    }
+
+    function updateUI(data) {
+      document.getElementById('server-status-dot').className = 'status-dot';
+      
+      // Memory (RAM) Calculation
+      const mem = data.system.memory;
+      const memUsedPercent = mem.usagePercent;
+      const memTotalGb = (mem.total / 1024 / 1024 / 1024).toFixed(1);
+      const memFreeGb = (mem.free / 1024 / 1024 / 1024).toFixed(1);
+      document.getElementById('ram-value').innerText = `${memUsedPercent}%`;
+      document.getElementById('ram-progress').style.width = `${memUsedPercent}%`;
+      document.getElementById('ram-subtext').innerText = `Free: ${memFreeGb} GB / ${memTotalGb} GB`;
+
+      // Disk Storage Calculation
+      const disk = data.system.disk;
+      const diskAlert = data.diskAlert;
+      const diskUsedPercent = disk.usagePercent;
+      const diskTotalGb = (disk.total / 1024 / 1024 / 1024).toFixed(1);
+      const diskFreeGb = (disk.available / 1024 / 1024 / 1024).toFixed(1);
+      
+      document.getElementById('disk-value').innerText = `${diskUsedPercent}%`;
+      document.getElementById('disk-subtext').innerText = `Available: ${diskFreeGb} GB / ${diskTotalGb} GB`;
+
+      const diskProgress = document.getElementById('disk-progress');
+      diskProgress.style.width = `${diskUsedPercent}%`;
+      
+      const diskAlertBadge = document.getElementById('disk-alert-badge');
+      if (diskAlert && diskAlert.status === 'CRITICAL') {
+        diskProgress.style.background = 'var(--red)';
+        diskAlertBadge.innerText = 'FULL';
+        diskAlertBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+        diskAlertBadge.style.color = 'var(--red)';
+        diskAlertBadge.style.display = 'inline-block';
+      } else if (diskAlert && diskAlert.status === 'WARNING') {
+        diskProgress.style.background = '#f59e0b';
+        diskAlertBadge.innerText = 'WARN';
+        diskAlertBadge.style.background = 'rgba(245, 158, 11, 0.2)';
+        diskAlertBadge.style.color = '#f59e0b';
+        diskAlertBadge.style.display = 'inline-block';
+      } else {
+        diskProgress.style.background = 'var(--blue)';
+        diskAlertBadge.style.display = 'none';
+      }
+
+      // CPU Calculation
+      const cpu = data.system.cpu;
+      const loadAvg = cpu.loadAvg[0].toFixed(2);
+      document.getElementById('cpu-value').innerText = loadAvg;
+      document.getElementById('cpu-cores-text').innerText = `Cores: ${cpu.cores} CPU`;
+
+      // Uptime Calculation
+      const uptimeSec = cpu.uptime;
+      const days = Math.floor(uptimeSec / 86400);
+      const hours = Math.floor((uptimeSec % 86400) / 3600);
+      const minutes = Math.floor((uptimeSec % 3600) / 60);
+      document.getElementById('uptime-text').innerText = `Uptime: ${days}d ${hours}h ${minutes}m`;
+
+      // DevSync Data Stats
+      const devsync = data.devsync;
+      document.getElementById('users-count').innerText = devsync.users;
+      document.getElementById('devices-count').innerText = devsync.activeDevices;
+      document.getElementById('total-devices-count').innerText = devsync.totalDevices;
+      document.getElementById('conflicts-count').innerText = devsync.unresolvedConflicts;
+      document.getElementById('backups-count').innerText = devsync.completedBackups;
+      document.getElementById('failed-backups-count').innerText = devsync.failedBackups;
+      document.getElementById('projects-count').innerText = devsync.totalProjects;
+      document.getElementById('files-count').innerText = devsync.totalFiles.toLocaleString();
+      document.getElementById('versions-count').innerText = devsync.totalVersions.toLocaleString();
+      document.getElementById('active-syncs-count').innerText = devsync.activeSyncs;
+
+      // Render live audit events
+      if (data.recentAuditLogs && data.recentAuditLogs.length > 0) {
+        const tbody = document.getElementById('audit-log-body');
+        tbody.innerHTML = data.recentAuditLogs.map(log => {
+          const ts = new Date(log.createdAt).toLocaleString();
+          const actionColor = log.action.includes('DELETE') ? 'var(--red)' : log.action.includes('CREATE') ? 'var(--green)' : 'var(--purple-light)';
+          return `<tr style="border-bottom: 1px solid var(--glass-border);">
+            <td style="padding: 8px; color: var(--text-muted); white-space: nowrap; font-size: 12px;">${ts}</td>
+            <td style="padding: 8px; font-weight: 600; color: ${actionColor};">${log.action}</td>
+            <td style="padding: 8px;">${log.userEmail}</td>
+          </tr>`;
+        }).join('');
+      } else {
+        document.getElementById('audit-log-body').innerHTML = '<tr><td colspan="3" style="padding: 16px 8px; color: var(--text-muted);">No audit events yet.</td></tr>';
+      }
+
+      // Update Chart performance
+      const timeLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      updateChart(timeLabel, loadAvg * 20, memUsedPercent);
+    }
+
+    function initChart() {
+      const ctx = document.getElementById('perfChart').getContext('2d');
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labelsHistory,
+          datasets: [
+            {
+              label: 'CPU Load (scaled)',
+              data: cpuHistory,
+              borderColor: '#8b5cf6',
+              borderWidth: 2,
+              tension: 0.3,
+              fill: false
+            },
+            {
+              label: 'RAM Usage (%)',
+              data: ramHistory,
+              borderColor: '#3b82f6',
+              borderWidth: 2,
+              tension: 0.3,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#9ca3af' }
+            },
+            y: {
+              min: 0,
+              max: 100,
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#9ca3af' }
+            }
+          },
+          plugins: {
+            legend: {
+              labels: { color: '#f3f4f6' }
+            }
+          }
+        }
+      });
+    }
+
+    function updateChart(timeLabel, cpuVal, ramVal) {
+      if (!chartInstance) return;
+
+      if (cpuHistory.length >= 10) {
+        cpuHistory.shift();
+        ramHistory.shift();
+        labelsHistory.shift();
+      }
+
+      cpuHistory.push(cpuVal);
+      ramHistory.push(ramVal);
+      labelsHistory.push(timeLabel);
+
+      chartInstance.update();
+
+    }
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/public/sw.js')
+          .then(registration => console.log('ServiceWorker registration successful'))
+          .catch(err => console.log('ServiceWorker registration failed: ', err));
+      });
+    }
+  </script>
+</body>
+</html>

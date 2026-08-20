@@ -1,8 +1,28 @@
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { getDb } = require('../database/db');
 
-const API_BASE_URL = 'http://localhost:3000/api/v1';
+const getApiBaseUrl = () => `${apiService.getServerUrl()}/api/v1`;
 
 class ApiService {
+  getServerUrl() {
+    if (process.env.DEVSYNC_SERVER_URL) {
+      return process.env.DEVSYNC_SERVER_URL;
+    }
+    const configPath = path.join(os.homedir(), '.devsync', 'config.json');
+    if (fs.existsSync(configPath)) {
+      try {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (config.serverUrl) {
+          return config.serverUrl;
+        }
+      } catch (err) {
+        console.error('[API] Failed to parse config.json:', err);
+      }
+    }
+    return 'http://localhost:3000';
+  }
   async request(endpoint, options = {}) {
     const session = await this.getSession();
     
@@ -15,7 +35,7 @@ class ApiService {
       headers['Authorization'] = `Bearer ${session.token}`;
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
       ...options,
       headers
     });
@@ -44,7 +64,7 @@ class ApiService {
     const formData = new FormData();
     formData.append('file', fileBlob, filePath.split(/[\\/]/).pop());
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
       method: 'POST',
       headers,
       body: formData
@@ -87,7 +107,7 @@ class ApiService {
     formData.append('uploadId', uploadId);
     formData.append('chunkIndex', String(chunkIndex));
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
       method: 'POST',
       headers,
       body: formData
@@ -118,7 +138,7 @@ class ApiService {
       headers['Authorization'] = `Bearer ${session.token}`;
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
       headers
     });
 
@@ -153,4 +173,5 @@ class ApiService {
   }
 }
 
-module.exports = new ApiService();
+const apiService = new ApiService();
+module.exports = apiService;

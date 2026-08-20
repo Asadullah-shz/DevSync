@@ -1,0 +1,21 @@
+{
+  "name": "DevSync Monitor",
+  "short_name": "DevSync",
+  "start_url": "/public/dashboard.html",
+  "display": "standalone",
+  "background_color": "#0f0c1b",
+  "theme_color": "#0f0c1b",
+  "description": "DevSync Server Monitoring Dashboard",
+  "icons": [
+    {
+      "src": "/public/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/public/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -339,7 +339,45 @@ ipcMain.handle('api:createWorkspace', async (event, name) => {
   }
 });
 
-// Project API
+ipcMain.handle('api:addWorkspaceMember', async (event, workspaceId, email, role) => {
+  const apiService = require('./services/api.service');
+  try {
+    const data = await apiService.request(`/workspaces/${workspaceId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ email, role })
+    });
+    return { success: true, member: data.member };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('api:updateWorkspaceMemberRole', async (event, workspaceId, userId, role) => {
+  const apiService = require('./services/api.service');
+  try {
+    const data = await apiService.request(`/workspaces/${workspaceId}/members/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ role })
+    });
+    return { success: true, member: data.member };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('api:removeWorkspaceMember', async (event, workspaceId, userId) => {
+  const apiService = require('./services/api.service');
+  try {
+    const data = await apiService.request(`/workspaces/${workspaceId}/members/${userId}`, {
+      method: 'DELETE'
+    });
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+
 ipcMain.handle('api:getProjects', async () => {
   const apiService = require('./services/api.service');
   try {
@@ -391,6 +429,27 @@ ipcMain.handle('api:getProjectHistory', async (event, projectId) => {
   try {
     const data = await apiService.request(`/versions/${projectId}/versions`);
     return { success: true, history: data.history };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// Audit Logs
+ipcMain.handle('api:getGlobalAuditLogs', async () => {
+  const apiService = require('./services/api.service');
+  try {
+    const data = await apiService.request('/audit');
+    return { success: true, logs: data.logs };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('api:getProjectAuditLogs', async (event, projectId) => {
+  const apiService = require('./services/api.service');
+  try {
+    const data = await apiService.request(`/audit/project/${projectId}`);
+    return { success: true, logs: data.logs };
   } catch (err) {
     return { success: false, error: err.message };
   }

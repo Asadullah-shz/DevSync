@@ -17,7 +17,7 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
-  deviceId: z.string().optional(),
+  deviceId: z.string().nullable().optional(),
 });
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
@@ -42,6 +42,57 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     });
 
     res.status(201).json({ user: { id: user.id, email: user.email, name: user.name } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const ssoCallback = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = req.user as any;
+    if (!user) {
+      return res.redirect('/login?error=sso_failed');
+    }
+
+    const deviceId = req.query.deviceId as string || 'SSO-DEVICE';
+
+    const accessToken = jwt.sign({ userId: user.id, deviceId }, JWT_SECRET, { expiresIn: '15m' });
+    const refreshToken = crypto.randomBytes(40).toString('hex');
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+
+    await db.session.create({
+      data: {
+        id: `SES-${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
+        userId: user.id,
+        deviceId,
+        token: refreshToken,
+        expiresAt,
+      }
+    });
+
+    // In a real application, you'd want to redirect back to the desktop app 
+    // using a custom protocol URI like devsync://auth?access_token=...
+    // For this implementation, we return JSON or a simple HTML page with the token.
+    res.send(`
+      <html>
+        <body>
+          <h1>SSO Login Successful</h1>
+          <p>You can close this window and return to DevSync.</p>
+          <script>
+            // Send token to the desktop app or store it
+            const tokenData = { accessToken: "${accessToken}", refreshToken: "${refreshToken}" };
+            if (window.opener) {
+              window.opener.postMessage({ type: 'sso_success', data: tokenData }, '*');
+              window.close();
+            } else {
+              console.log(tokenData);
+            }
+          </script>
+        </body>
+      </html>
+    `);
   } catch (err) {
     next(err);
   }

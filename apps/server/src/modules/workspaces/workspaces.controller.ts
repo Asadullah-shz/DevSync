@@ -16,6 +16,12 @@ const addMemberSchema = z.object({
   role: z.enum(['OWNER', 'ADMIN', 'EDITOR', 'VIEWER']).default('VIEWER'),
 });
 
+const updatePoliciesSchema = z.object({
+  requireDeviceApproval: z.boolean().optional(),
+  storageQuotaBytes: z.number().nullable().optional(),
+  allowExternalSharing: z.boolean().optional(),
+});
+
 export const createWorkspace = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const data = createWorkspaceSchema.parse(req.body);
@@ -168,6 +174,76 @@ export const removeWorkspaceMember = async (req: AuthRequest, res: Response, nex
     }
 
     res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const updateMemberRoleSchema = z.object({
+  role: z.enum(['ADMIN', 'EDITOR', 'VIEWER']),
+});
+
+export const updateWorkspaceMemberRole = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id: workspaceId, userId } = req.params;
+    const data = updateMemberRoleSchema.parse(req.body);
+
+    // Verify current user has admin rights
+    const currentMember = await db.workspaceMember.findFirst({
+      where: { workspaceId, userId: req.user.id }
+    });
+
+    if (!currentMember || (currentMember.role !== 'OWNER' && currentMember.role !== 'ADMIN')) {
+      return res.status(403).json({ error: { message: 'Forbidden' } });
+    }
+
+    // Find target member
+    const targetMember = await db.workspaceMember.findFirst({
+      where: { workspaceId, userId }
+    });
+
+    if (!targetMember) {
+      return res.status(404).json({ error: { message: 'Workspace member not found' } });
+    }
+
+    // Cannot change OWNER role unless transferring (which we don't support yet)
+    if (targetMember.role === 'OWNER') {
+      return res.status(400).json({ error: { message: 'Cannot change the role of the workspace owner' } });
+    }
+
+    const updatedMember = await db.workspaceMember.update({
+      where: { id: targetMember.id },
+      data: { role: data.role },
+      include: {
+        user: { select: { id: true, name: true, email: true } }
+      }
+    });
+
+    res.json({ member: updatedMember });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateWorkspacePolicies = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id: workspaceId } = req.params;
+    const data = updatePoliciesSchema.parse(req.body);
+
+    const currentMember = await db.workspaceMember.findFirst({
+      where: { workspaceId, userId: req.user.id }
+    });
+
+    if (!currentMember || (currentMember.role !== 'OWNER' && currentMember.role !== 'ADMIN')) {
+      return res.status(403).json({ error: { message: 'Forbidden: Only Workspace Admins can update policies' } });
+    }
+
+    const updatedWorkspace = await db.workspace.update({
+      where: { id: workspaceId },
+      data,
+    });
+
+    res.json({ workspace: updatedWorkspace });
   } catch (err) {
     next(err);
   }

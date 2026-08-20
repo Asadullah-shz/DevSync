@@ -7,6 +7,8 @@ import {
   deleteProject
 } from './projects.controller.js';
 
+import { requireRole } from '../../middleware/authorize.middleware.js';
+
 const router = Router();
 
 router.use(authenticate);
@@ -14,6 +16,6 @@ router.use(authenticate);
 router.post('/', createProject);
 router.get('/', getProjects);
 router.get('/:id', getProjectById);
-router.delete('/:id', deleteProject);
+router.delete('/:id', requireRole(['OWNER', 'ADMIN']), deleteProject);
 
 export default router;

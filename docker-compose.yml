@@ -6,9 +6,89 @@ services:
     container_name: devsync_mongodb
     ports:
       - "27017:27017"
+    entrypoint: [
+      "/bin/sh",
+      "-c",
+      "mongod --replSet rs0 --bind_ip_all & MONGODB_PID=$!; sleep 5; mongosh --eval 'try { rs.initiate({_id: \"rs0\", members: [{_id: 0, host: \"mongodb:27017\"}]}) } catch(e) { print(e) }'; wait $$MONGODB_PID"
+    ]
     volumes:
       - mongodb_data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:alpine
+    container_name: devsync_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: devsync_server
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - DATABASE_URL=mongodb://mongodb:27017/devsync?replicaSet=rs0
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=ce4938a14f82d1f45dc2c537cee38399d4c7570080274fe8b47c48ef1c1987af
+      - REFRESH_SECRET=devsync_refresh_secret_super_secure_key_2026
+      - STORAGE_ENCRYPTION_KEY=${STORAGE_ENCRYPTION_KEY:-}
+      - STORAGE_BACKEND=${STORAGE_BACKEND:-local}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - SSO_CALLBACK_URL=${SSO_CALLBACK_URL:-http://localhost:3000/api/v1/auth}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - server_storage:/app/apps/server/storage
+      - server_backups:/app/apps/server/backups
+    restart: unless-stopped
+    stop_grace_period: 15s
+
+  nginx:
+    image: nginx:alpine
+    container_name: devsync_nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: devsync_tunnel
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    depends_on:
+      - nginx
     restart: unless-stopped
 
 volumes:
   mongodb_data:
+  server_storage:
+  server_backups:

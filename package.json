@@ -11,14 +11,18 @@
     "dev:server": "npm run dev -w apps/server",
     "dev:desktop": "npm run dev -w apps/desktop",
     "build": "npm run build --workspaces --if-present",
+    "test": "vitest run",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
   "devDependencies": {
     "@electron/rebuild": "^4.2.0",
     "@types/node": "^20.0.0",
+    "@types/supertest": "^7.2.1",
     "eslint": "^9.0.0",
     "prettier": "^3.0.0",
-    "typescript": "^5.0.0"
+    "supertest": "^7.2.2",
+    "typescript": "^5.0.0",
+    "vitest": "^4.1.11"
   }
 }

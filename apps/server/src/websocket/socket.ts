@@ -1,17 +1,31 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
+import { createClient } from 'redis';
+import { createAdapter } from '@socket.io/redis-adapter';
 import jwt from 'jsonwebtoken';
 import { db } from '../database/db.js';
 
 let io: SocketIOServer;
 
-export const initWebSocket = (server: HttpServer) => {
+export const initWebSocket = async (server: HttpServer) => {
   io = new SocketIOServer(server, {
     cors: {
       origin: '*', // Customize this for production
       methods: ['GET', 'POST']
     }
   });
+
+  if (process.env.REDIS_URL) {
+    const pubClient = createClient({ url: process.env.REDIS_URL });
+    const subClient = pubClient.duplicate();
+
+    pubClient.on('error', (err) => console.error('[Redis PubClient] Error:', err));
+    subClient.on('error', (err) => console.error('[Redis SubClient] Error:', err));
+
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log('[WebSocket] Redis adapter applied for distributed pub/sub');
+  }
 
   io.use(async (socket, next) => {
     try {

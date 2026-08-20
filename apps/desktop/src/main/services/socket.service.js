@@ -15,8 +15,10 @@ class SocketService {
 
     this.token = token;
     
+    const apiService = require('./api.service');
+    const serverUrl = apiService.getServerUrl();
   
-    this.socket = io('http://localhost:3000', {
+    this.socket = io(serverUrl, {
       auth: {   
         token: this.token
       }

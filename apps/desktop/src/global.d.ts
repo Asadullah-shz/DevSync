@@ -33,13 +33,20 @@ declare global {
       // Project API
       getWorkspaces: () => Promise<{ success: boolean, workspaces?: any[], error?: string }>;
       createWorkspace: (name: string) => Promise<{ success: boolean, workspace?: any, error?: string }>;
+      addWorkspaceMember: (workspaceId: string, email: string, role: string) => Promise<any>;
+      updateWorkspaceMemberRole: (workspaceId: string, userId: string, role: string) => Promise<any>;
+      removeWorkspaceMember: (workspaceId: string, userId: string) => Promise<any>;
       getProjects: () => Promise<{ success: boolean, projects?: any[], error?: string }>;
       createProject: (name: string, workspaceId: string, localPath: string) => Promise<{ success: boolean, project?: any, error?: string }>;
       getLocalProjects: () => Promise<{ success: boolean, localProjects?: any[], error?: string }>;
-      getProjectHistory: (projectId: string) => Promise<any>;
-      restoreFile: (projectId: string, hash: string, relativePath: string) => Promise<any>;
-      getDeletedFiles: (projectId: string) => Promise<any>;
-      restoreDeletedFile: (projectId: string, fileId: string) => Promise<any>;
+      getProjectHistory: (projectId: string) => Promise<{ success: boolean, history?: any[], error?: string }>;
+      restoreFile: (projectId: string, hash: string, relativePath: string) => Promise<{ success: boolean, error?: string }>;
+      getDeletedFiles: (projectId: string) => Promise<{ success: boolean, files?: any[], error?: string }>;
+      restoreDeletedFile: (projectId: string, fileId: string) => Promise<{ success: boolean, error?: string }>;
+
+      // Audit Logs
+      getGlobalAuditLogs: () => Promise<{ success: boolean, logs?: any[], error?: string }>;
+      getProjectAuditLogs: (projectId: string) => Promise<{ success: boolean, logs?: any[], error?: string }>;
 
       getConflicts: (projectId: string) => Promise<any>;
       resolveConflict: (projectId: string, conflictId: string, resolution: 'mine' | 'server') => Promise<any>;
