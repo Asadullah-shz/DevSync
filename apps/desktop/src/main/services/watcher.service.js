@@ -3,7 +3,7 @@ const path = require('path');
 const hashService = require('./hash.service.js');
 const syncQueue = require('./sync-queue.service');
 
-// How many DELETE events in one 3-second window triggers a mass-delete warning
+
 const MASS_DELETE_THRESHOLD = 10;
 
 class WatcherService {
@@ -16,19 +16,19 @@ class WatcherService {
     this.debounceTimeouts = new Map();
     this.ignoredPaths = new Set();
 
-    // Mass-delete detection state
-    this._deleteWindow = [];       // timestamps of DELETE events in current window
-    this._pendingDeletes = [];     // buffered DELETE eventData waiting for user decision
+
+    this._deleteWindow = [];
+    this._pendingDeletes = [];
     this._massDeletePending = false;
-    this._massDeleteListener = null; // set by index.js
+    this._massDeleteListener = null;
   }
 
-  // Called by index.js to receive mass-delete warnings
+
   onMassDeleteWarning(listener) {
     this._massDeleteListener = listener;
   }
 
-  // Called by index.js when user clicks "Continue" in the warning modal
+
   flushPendingDeletes() {
     const toFlush = this._pendingDeletes.slice();
     this._pendingDeletes = [];
@@ -41,7 +41,7 @@ class WatcherService {
     console.log(`[WATCHER] Flushed ${toFlush.length} buffered deletions into sync queue.`);
   }
 
-  // Called by index.js when user clicks "Pause Sync" (discard deletions)
+
   discardPendingDeletes() {
     const count = this._pendingDeletes.length;
     this._pendingDeletes = [];
@@ -82,7 +82,7 @@ class WatcherService {
         });
       console.log(`[WATCHER] Loaded .dev-syncignore with ${dynamicIgnores.length} rules.`);
     } catch (err) {
-      // It's totally fine if .dev-syncignore doesn't exist
+
     }
 
     const baseIgnores = [
@@ -130,7 +130,7 @@ class WatcherService {
   _trackDelete() {
     const now = Date.now();
     const windowMs = 3000;
-    // Drop events older than the window
+
     this._deleteWindow = this._deleteWindow.filter(ts => now - ts < windowMs);
     this._deleteWindow.push(now);
     return this._deleteWindow.length;
@@ -143,7 +143,7 @@ class WatcherService {
       return;
     }
 
-    // Auto-reload the watcher if .dev-syncignore is modified
+
     if (filePath.endsWith('.dev-syncignore')) {
       console.log(`[WATCHER] .dev-syncignore changed. Reloading watcher...`);
       this.startWatching(this.projectId, this.watchedPath, this.onEventCallback);
@@ -175,19 +175,19 @@ class WatcherService {
           timestamp: new Date().toISOString()
         };
 
-        // --- Mass-delete circuit breaker ---
+
         if (type === 'DELETE') {
           const count = this._trackDelete();
 
           if (this._massDeletePending) {
-            // Already in warning state — buffer this too
+
             this._pendingDeletes.push(eventData);
             console.log(`[WATCHER] Mass-delete buffering: ${this._pendingDeletes.length} deletions pending.`);
             return;
           }
 
           if (count >= MASS_DELETE_THRESHOLD) {
-            // Trip the circuit breaker — buffer and warn
+
             this._massDeletePending = true;
             this._pendingDeletes.push(eventData);
             console.log(`[WATCHER] Mass-delete threshold reached (${count} deletes). Pausing sync.`);
@@ -198,7 +198,7 @@ class WatcherService {
           }
         }
 
-        // Normal path
+
         syncQueue.enqueue(this.projectId, eventData);
         if (this.onEventCallback) {
           this.onEventCallback(eventData);

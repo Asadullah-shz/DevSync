@@ -5,7 +5,7 @@ import { requireSystemAdmin } from '../../middleware/admin.middleware.js';
 
 const router = Router();
 
-// All admin routes require authentication and System Admin privileges
+
 router.use(authenticate, requireSystemAdmin);
 
 router.get('/users', getUsers);

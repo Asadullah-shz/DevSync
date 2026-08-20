@@ -20,7 +20,7 @@ function loadConfig(): Config {
     try {
       return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
     } catch {
-      // return default
+
     }
   }
   return { apiUrl: 'http://localhost:3000' };
@@ -44,19 +44,19 @@ program
   .action(async (email, password, options) => {
     const config = loadConfig();
     config.apiUrl = options.url;
-    
+
     try {
       console.log(`Connecting to ${config.apiUrl}...`);
       const res = await axios.post(`${config.apiUrl}/api/v1/auth/login`, { email, password });
-      
+
       if (res.data && res.data.accessToken) {
         config.token = res.data.accessToken;
-        
-        // Generate random device ID for CLI client if not present
+
+
         if (!config.deviceId) {
           config.deviceId = `CLI-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
         }
-        
+
         saveConfig(config);
         console.log(`Login successful! Device ID registered: ${config.deviceId}`);
       } else {
@@ -89,13 +89,13 @@ program
     console.log(`Local Path: ${absolutePath}`);
     console.log(`Device ID: ${config.deviceId}`);
 
-    // Set up API client with JWT Auth header
+
     const api = axios.create({
       baseURL: config.apiUrl,
       headers: { Authorization: `Bearer ${config.token}` }
     });
 
-    // Verify project exists
+
     try {
       await api.get(`/api/v1/projects`);
       console.log('Successfully authenticated with DevSync server.');
@@ -104,7 +104,7 @@ program
       process.exit(1);
     }
 
-    // Setup chokidar watcher
+
     const watcher = chokidar.watch(absolutePath, {
       ignored: [/(^|[\/\\])\../, '**/node_modules/**', '**/.git/**'],
       persistent: true,
@@ -115,7 +115,7 @@ program
     let pendingOps: any[] = [];
     let isProcessing = false;
 
-    // Buffer and upload changes
+
     const processQueue = async () => {
       if (pendingOps.length === 0 || isProcessing) return;
       isProcessing = true;
@@ -140,7 +140,7 @@ program
         console.log(`[SYNC] Pushed changes successfully.`);
       } catch (err: any) {
         console.error('[SYNC] Failed to push operations:', err.response?.data?.error?.message || err.message);
-        // Put back in queue to retry
+
         pendingOps.unshift(...batch);
       } finally {
         isProcessing = false;
@@ -158,10 +158,10 @@ program
         try {
           const stats = fs.statSync(filePath);
           size = stats.size;
-          // Simple hash generation for CLI client demo/headless purposes
+
           hash = crypto.createHash('md5').update(fs.readFileSync(filePath)).digest('hex');
-          
-          // Fast local-upload simulation (direct S3/local storage upload stream is standard for larger sizes)
+
+
           const fileData = fs.readFileSync(filePath);
           await api.post('/api/v1/storage/upload', fileData, {
             headers: {
@@ -184,13 +184,13 @@ program
       .on('change', (p) => handleWatcherEvent('MODIFY', p))
       .on('unlink', (p) => handleWatcherEvent('DELETE', p));
 
-    // Periodically pull server changes
+
     setInterval(async () => {
       try {
         const res = await api.get(`/api/v1/sync/${projectId}/operations`);
         if (res.data.operations && res.data.operations.length > 0) {
           console.log(`[SYNC PULL] Pulled ${res.data.operations.length} new operations.`);
-          // Headless client would apply changes here by downloading/deleting files...
+
         }
       } catch (err: any) {
         console.error('[SYNC PULL] Error pulling changes:', err.message);

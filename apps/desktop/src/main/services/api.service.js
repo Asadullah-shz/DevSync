@@ -25,7 +25,7 @@ class ApiService {
   }
   async request(endpoint, options = {}) {
     const session = await this.getSession();
-    
+
     const headers = {
       'Content-Type': 'application/json',
       ...options.headers
@@ -52,7 +52,7 @@ class ApiService {
   async uploadFile(endpoint, filePath) {
     const session = await this.getSession();
     const fs = require('fs/promises');
-    
+
     const headers = {};
     if (session && session.token) {
       headers['Authorization'] = `Bearer ${session.token}`;
@@ -60,7 +60,7 @@ class ApiService {
 
     const fileBuffer = await fs.readFile(filePath);
     const fileBlob = new Blob([fileBuffer]);
-    
+
     const formData = new FormData();
     formData.append('file', fileBlob, filePath.split(/[\\/]/).pop());
 
@@ -84,16 +84,16 @@ class ApiService {
     const fs = require('fs');
     const { promisify } = require('util');
     const read = promisify(fs.read);
-    
+
     const headers = {};
     if (session && session.token) {
       headers['Authorization'] = `Bearer ${session.token}`;
     }
 
-    // Read specific chunk into memory
+
     const length = end - start;
     const buffer = Buffer.alloc(length);
-    
+
     const fd = await fs.promises.open(filePath, 'r');
     try {
       await fd.read(buffer, 0, length, start);
@@ -132,7 +132,7 @@ class ApiService {
     const path = require('path');
     const { pipeline } = require('stream/promises');
     const { Readable } = require('stream');
-    
+
     const headers = {};
     if (session && session.token) {
       headers['Authorization'] = `Bearer ${session.token}`;
@@ -149,8 +149,8 @@ class ApiService {
     await fsPromises.mkdir(path.dirname(targetPath), { recursive: true });
 
     if (response.body) {
-      // Use pipeline to stream the file to disk directly, bypassing RAM
-      // Node 18+ fetch body is a web stream, so we convert it to Node readable stream
+
+
       const fileStream = fs.createWriteStream(targetPath);
       await pipeline(Readable.fromWeb(response.body), fileStream);
     } else {
@@ -171,7 +171,7 @@ class ApiService {
 
   async saveSession(token, user) {
     const db = getDb();
-    await db.run('DELETE FROM auth_session'); 
+    await db.run('DELETE FROM auth_session');
     await db.run('INSERT INTO auth_session (token, user_id, email) VALUES (?, ?, ?)', [token, user.id, user.email]);
   }
 

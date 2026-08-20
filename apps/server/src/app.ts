@@ -34,10 +34,10 @@ const PUBLIC_DIR = path.join(__dirname, '../public');
 const app = express();
 const server = http.createServer(app);
 
-// Initialize WebSocket (runs async to connect to Redis if configured)
+
 initWebSocket(server).catch(err => console.error('[WebSocket] Init error:', err));
 
-// Security Middleware with Content Security Policy to support dashboard CDNs and Google Fonts
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -84,8 +84,8 @@ app.use(express.json());
 app.use(passport.initialize());
 
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Limit each IP to 10 auth requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 10,
   message: 'Too many authentication attempts, please try again after 15 minutes',
   store: rateLimitStore,
 });
@@ -104,7 +104,7 @@ app.use('/api/v1/backups', backupsRoutes);
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/admin', adminRoutes);
 
-// Mount public folder for static dashboard resources relative to source directory
+
 app.use('/public', express.static(PUBLIC_DIR));
 app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'dashboard.html'));
@@ -117,22 +117,22 @@ app.use(errorHandler);
 if (process.env.NODE_ENV !== 'test') {
   server.listen(3000, async () => {
     console.log('Server running on port 3000');
-    
-    // Attempt auto-recovery if database is completely empty
+
+
     await RecoveryService.autoRecoverIfEmpty();
-    
+
     BackupScheduler.start();
   });
 
-  // Graceful shutdown — handle Docker stop / Ctrl-C / process manager signals
+
   const shutdown = async (signal: string) => {
     console.log(`\n[Shutdown] Received ${signal}. Gracefully shutting down...`);
 
-    // Stop accepting new HTTP connections
+
     server.close(async () => {
       console.log('[Shutdown] HTTP server closed. Draining in-flight requests done.');
 
-      // Disconnect from MongoDB via Prisma
+
       try {
         const { db } = await import('./database/db.js');
         await db.$disconnect();
@@ -145,7 +145,7 @@ if (process.env.NODE_ENV !== 'test') {
       process.exit(0);
     });
 
-    // Force exit after 10 seconds if requests are still pending
+
     setTimeout(() => {
       console.error('[Shutdown] Forced exit after timeout — some requests may have been dropped.');
       process.exit(1);

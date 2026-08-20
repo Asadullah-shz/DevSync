@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { processOperations } from '../src/modules/sync/sync.controller.js';
 import { db } from '../src/database/db.js';
 
-// Mock the prisma db client
+
 vi.mock('../src/database/db.js', () => {
   return {
     db: {
@@ -57,7 +57,7 @@ describe('Sync Controller Policy Enforcements', () => {
   });
 
   it('should return 403 if device approval is required and device is not approved', async () => {
-    // Setup Mock: Workspace requires device approval
+
     db.project.findUnique.mockResolvedValue({
       id: 'project-1',
       workspaceId: 'workspace-1',
@@ -70,7 +70,7 @@ describe('Sync Controller Policy Enforcements', () => {
       userId: 'user-1',
       role: 'ADMIN'
     });
-    // Mock: Device is pending
+
     db.device.findUnique.mockResolvedValue({
       id: 'device-1',
       status: 'PENDING'
@@ -87,7 +87,7 @@ describe('Sync Controller Policy Enforcements', () => {
   });
 
   it('should return 507 if workspace storage quota is exceeded', async () => {
-    // Setup Mock: Workspace has a 2KB storage quota
+
     db.project.findUnique.mockResolvedValue({
       id: 'project-1',
       workspaceId: 'workspace-1',
@@ -103,12 +103,12 @@ describe('Sync Controller Policy Enforcements', () => {
     db.project.findMany.mockResolvedValue([
       { id: 'project-1' }
     ]);
-    // Mock current usage: 1.5 KB
+
     db.file.findMany.mockResolvedValue([
       { size: 1500 }
     ]);
 
-    // Incoming operation requests 1024 bytes (1 KB). Total = 2.5 KB > 2 KB quota
+
     await processOperations(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(507);

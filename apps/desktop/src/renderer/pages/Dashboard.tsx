@@ -36,17 +36,17 @@ export const Dashboard: React.FC = () => {
 
   const [storageStats, setStorageStats] = useState<{ usedBytes: number; totalFiles: number } | null>(null);
 
-  // Mass-delete warning state
+
   const [massDeleteCount, setMassDeleteCount] = useState<number | null>(null);
   const [isMassDeleteResolving, setIsMassDeleteResolving] = useState(false);
 
-  // Team Management state
+
   const [showTeam, setShowTeam] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('VIEWER');
   const [isInviting, setIsInviting] = useState(false);
 
-  // V3 Features: Workspace Settings and Device Approval
+
   const [isPendingApproval, setIsPendingApproval] = useState(false);
   const [showWorkspaceSettings, setShowWorkspaceSettings] = useState<any>(null);
   const [workspacePolicies, setWorkspacePolicies] = useState<any>({
@@ -59,7 +59,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       if (!window.electronAPI) return;
-      
+
       try {
         const wsData = await window.electronAPI.getWorkspaces();
         if (wsData.success && wsData.workspaces && wsData.workspaces.length === 0) {
@@ -71,7 +71,7 @@ export const Dashboard: React.FC = () => {
 
         const projData = await window.electronAPI.getProjects();
         const localData = await window.electronAPI.getLocalProjects();
-        
+
         if (projData.success && projData.projects && localData.success && localData.localProjects) {
           const merged = projData.projects.map((p: any) => {
             const local = localData.localProjects!.find((lp: any) => lp.project_id === p.id);
@@ -89,14 +89,14 @@ export const Dashboard: React.FC = () => {
     };
     loadData();
 
-    // Load storage stats separately (non-blocking)
+
     if (window.electronAPI) {
       window.electronAPI.getStorageStats().then((res: any) => {
         if (res.success && res.stats) setStorageStats(res.stats);
       }).catch(() => {});
     }
 
-    // Listen for file watcher events from Electron
+
     if (window.electronAPI) {
       window.electronAPI.onWatcherEvent((event: any) => {
         const newEvent: SyncEvent = {
@@ -106,24 +106,24 @@ export const Dashboard: React.FC = () => {
           timestamp: event.timestamp,
         };
         addSyncLog(newEvent);
-        // Tell tray we are syncing
+
         window.electronAPI.setTrayStatus('SYNCING').catch(() => {});
-        // After a short delay, mark as synced (the queue will eventually drain)
+
         setTimeout(() => {
           window.electronAPI.setTrayStatus('SYNCED').catch(() => {});
         }, 8000);
       });
 
-      // Tray deep-link listeners
+
       window.electronAPI.onTrayOpenConflicts(() => {
-        
+
       });
       window.electronAPI.onTrayOpenDevices(() => {
         setShowDevices(true);
         loadDevices();
       });
 
-     
+
       window.electronAPI.onMassDeleteWarning((count: number) => {
         setMassDeleteCount(count);
       });
@@ -168,7 +168,7 @@ export const Dashboard: React.FC = () => {
 
   const handleNewProject = async () => {
     if (!window.electronAPI) return;
-    
+
     if (workspaces.length === 0) {
       alert("No workspace found to create a project.");
       return;
@@ -178,7 +178,7 @@ export const Dashboard: React.FC = () => {
     if (folderPath) {
       const folderName = folderPath.split('\\').pop() || folderPath.split('/').pop() || 'New Project';
       const defaultWorkspaceId = workspaces[0].id;
-      
+
       try {
         const res = await window.electronAPI.createProject(folderName, defaultWorkspaceId, folderPath);
         if (res.success) {
@@ -188,7 +188,7 @@ export const Dashboard: React.FC = () => {
             isActive: true
           };
           addProject(newProject);
-          
+
 
           window.electronAPI.startWatching(newProject.id, folderPath);
           setIsWatching(prev => ({ ...prev, [newProject.id]: true }));
@@ -208,7 +208,7 @@ export const Dashboard: React.FC = () => {
     }
 
     if (isWatching[project.id]) {
-   
+
       window.electronAPI?.stopWatching();
       setIsWatching(prev => ({ ...prev, [project.id]: false }));
     } else {
@@ -232,7 +232,7 @@ export const Dashboard: React.FC = () => {
 
   const handleRestore = async (version: any) => {
     if (!window.electronAPI || !showHistoryFor) return;
-    
+
     if (confirm(`Are you sure you want to restore ${version.file.path} to version ${version.version}? This will overwrite the local file.`)) {
       setIsRestoring(true);
       try {
@@ -258,7 +258,7 @@ export const Dashboard: React.FC = () => {
       const res = await window.electronAPI.getConflicts(projectId);
       if (res.success && res.conflicts) {
         setProjectConflicts(res.conflicts);
-       
+
         if (res.conflicts.length > 0) {
           window.electronAPI.setTrayStatus('CONFLICT').catch(() => {});
         } else {
@@ -272,7 +272,7 @@ export const Dashboard: React.FC = () => {
 
   const handleResolve = async (conflictId: string, resolution: 'mine' | 'server') => {
     if (!window.electronAPI || !showConflictsFor) return;
-    
+
     setIsResolving(true);
     try {
       const res = await window.electronAPI.resolveConflict(showConflictsFor, conflictId, resolution);
@@ -388,13 +388,13 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="app-container" style={{ flexDirection: 'column' }}>
-      
-     
-      <header className="glass-panel" style={{ 
-        margin: '16px', 
-        padding: '16px 24px', 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+
+
+      <header className="glass-panel" style={{
+        margin: '16px',
+        padding: '16px 24px',
+        display: 'flex',
+        justifyContent: 'space-between',
         alignItems: 'center',
         borderTopLeftRadius: 'var(--border-radius-lg)',
         borderTopRightRadius: 'var(--border-radius-lg)'
@@ -405,7 +405,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <h3 style={{ margin: 0 }}>DevSync</h3>
         </div>
-        
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--glass-border)' }}>
@@ -413,7 +413,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{user?.name}</span>
           </div>
-          
+
           <button className="btn btn-secondary" style={{ padding: '8px' }} onClick={handleLogout}>
             <LogOut size={16} />
           </button>
@@ -426,11 +426,11 @@ export const Dashboard: React.FC = () => {
           <div style={{ flex: 1, fontSize: '0.875rem', fontWeight: 500 }}>
             Sync Paused: This device is pending approval from a Workspace Administrator.
           </div>
-          <button 
-            className="btn" 
+          <button
+            className="btn"
             style={{ padding: '6px 12px', background: '#991b1b', color: 'white', border: 'none', fontSize: '0.75rem' }}
             onClick={async () => {
-              // Try to check approval status
+
               setIsPendingApproval(false);
             }}
           >
@@ -440,13 +440,13 @@ export const Dashboard: React.FC = () => {
       )}
 
       <main style={{ padding: '16px', display: 'flex', gap: '16px', flex: 1, overflow: 'hidden' }}>
-        
-     
+
+
         <aside className="glass-panel" style={{ width: '250px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ padding: '8px 12px', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.05em', marginTop: '8px' }}>
             Workspaces
           </div>
-          
+
           <div className="glass-panel" style={{ padding: '12px', cursor: 'pointer', background: 'var(--glass-highlight)', borderColor: 'var(--accent-glow)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <HardDrive size={16} color="var(--accent-primary)" />
@@ -454,7 +454,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <div 
+          <div
             style={{ padding: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}
             onClick={() => { setShowDevices(true); loadDevices(); }}
           >
@@ -462,7 +462,7 @@ export const Dashboard: React.FC = () => {
             <span style={{ fontSize: '0.875rem' }}>Devices</span>
           </div>
 
-          <div 
+          <div
             style={{ padding: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}
             onClick={() => { setShowStorageHealth(true); }}
           >
@@ -470,7 +470,7 @@ export const Dashboard: React.FC = () => {
             <span style={{ fontSize: '0.875rem' }}>Storage Health</span>
           </div>
 
-          <div 
+          <div
             style={{ padding: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}
             onClick={() => { setShowTeam(true); }}
           >
@@ -479,7 +479,7 @@ export const Dashboard: React.FC = () => {
           </div>
 
           {workspaces.length > 0 && (
-            <div 
+            <div
               style={{ padding: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}
               onClick={() => {
                 setShowWorkspaceSettings(workspaces[0]);
@@ -493,10 +493,10 @@ export const Dashboard: React.FC = () => {
             </div>
           )}
 
-          <div 
+          <div
             style={{ padding: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}
-            onClick={async () => { 
-              setShowActivity(true); 
+            onClick={async () => {
+              setShowActivity(true);
               setIsLoadingAudit(true);
               const res = await window.electronAPI.getGlobalAuditLogs();
               if (res.success && res.logs) setAuditLogs(res.logs);
@@ -520,7 +520,7 @@ export const Dashboard: React.FC = () => {
               </div>
             )}
 
-  
+
             <div style={{ padding: '0 12px', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '12px' }}>
               Recent Activity
             </div>
@@ -543,7 +543,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </aside>
 
-  
+
         <section className="glass-panel" style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <h2>Sync Projects</h2>
@@ -554,15 +554,15 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
-            
+
             {projects.map(project => (
               <div key={project.id} className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', transition: 'transform 0.2s ease', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <FolderSync size={20} color="var(--accent-primary)" />
                   </div>
-                  <button 
-                    className={`btn ${isWatching ? 'btn-primary' : 'btn-secondary'}`} 
+                  <button
+                    className={`btn ${isWatching ? 'btn-primary' : 'btn-secondary'}`}
                     style={{ padding: '4px 12px', fontSize: '0.75rem' }}
                     onClick={(e) => { e.stopPropagation(); toggleWatch(project.localPath); }}
                   >
@@ -573,39 +573,39 @@ export const Dashboard: React.FC = () => {
                     )}
                   </button>
                 </div>
-                
+
                 <div>
                   <h3 style={{ marginBottom: '4px' }}>{project.name}</h3>
                   <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>{project.localPath}</p>
                 </div>
-                
+
                 <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--glass-border)', paddingTop: '16px' }}>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ID: {project.id}</span>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button 
-                      className="btn btn-secondary" 
+                    <button
+                      className="btn btn-secondary"
                       style={{ padding: '4px 12px', fontSize: '0.75rem', borderColor: 'var(--error)', color: 'var(--error)' }}
                       onClick={(e) => { e.stopPropagation(); setShowConflictsFor(project.id); loadConflicts(project.id); }}
                     >
                       Conflicts
                     </button>
-                    <button 
-                      className="btn btn-secondary" 
+                    <button
+                      className="btn btn-secondary"
                       style={{ padding: '4px 12px', fontSize: '0.75rem' }}
                       onClick={(e) => { e.stopPropagation(); setShowHistoryFor(project.id); loadHistory(project.id); }}
                     >
                       History
                     </button>
-                    <button 
-                      className="btn btn-secondary" 
+                    <button
+                      className="btn btn-secondary"
                       style={{ padding: '4px 12px', fontSize: '0.75rem' }}
                       onClick={(e) => { e.stopPropagation(); setShowActivity(true); loadProjectActivity(project.id); }}
                     >
                       <Activity size={12} />
                       Activity
                     </button>
-                    <button 
-                      className="btn btn-secondary" 
+                    <button
+                      className="btn btn-secondary"
                       style={{ padding: '4px 12px', fontSize: '0.75rem' }}
                       onClick={(e) => { e.stopPropagation(); setShowTrash(project.id); loadDeletedFiles(project.id); }}
                     >
@@ -643,7 +643,7 @@ export const Dashboard: React.FC = () => {
               <h2>Project History</h2>
               <button className="btn btn-secondary" onClick={() => setShowHistoryFor(null)}>Close</button>
             </div>
-            
+
             <div style={{ overflowY: 'auto', flex: 1 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
@@ -663,8 +663,8 @@ export const Dashboard: React.FC = () => {
                       <td style={{ padding: '8px' }}>{v.user ? v.user.name : 'Unknown'}</td>
                       <td style={{ padding: '8px' }}>{new Date(v.createdAt).toLocaleString()}</td>
                       <td style={{ padding: '8px' }}>
-                        <button 
-                          className="btn btn-primary" 
+                        <button
+                          className="btn btn-primary"
                           style={{ padding: '4px 12px', fontSize: '0.75rem' }}
                           onClick={() => handleRestore(v)}
                           disabled={isRestoring}
@@ -698,7 +698,7 @@ export const Dashboard: React.FC = () => {
               </div>
               <button className="btn btn-secondary" onClick={() => setShowConflictsFor(null)}>Close</button>
             </div>
-            
+
             <div style={{ overflowY: 'auto', flex: 1 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
@@ -714,16 +714,16 @@ export const Dashboard: React.FC = () => {
                       <td style={{ padding: '8px' }}>{c.path}</td>
                       <td style={{ padding: '8px' }}>{new Date(c.createdAt).toLocaleString()}</td>
                       <td style={{ padding: '8px', textAlign: 'right', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                        <button 
-                          className="btn btn-secondary" 
+                        <button
+                          className="btn btn-secondary"
                           style={{ padding: '4px 12px', fontSize: '0.75rem' }}
                           onClick={() => handleResolve(c.id, 'server')}
                           disabled={isResolving}
                         >
                           Keep Server
                         </button>
-                        <button 
-                          className="btn btn-primary" 
+                        <button
+                          className="btn btn-primary"
                           style={{ padding: '4px 12px', fontSize: '0.75rem' }}
                           onClick={() => handleResolve(c.id, 'mine')}
                           disabled={isResolving}
@@ -748,7 +748,7 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-  
+
       {showDevices && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div className="glass-panel" style={{ width: '800px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '24px', background: 'var(--bg-primary)' }}>
@@ -756,7 +756,7 @@ export const Dashboard: React.FC = () => {
               <h2>My Devices</h2>
               <button className="btn btn-secondary" onClick={() => setShowDevices(false)}>Close</button>
             </div>
-            
+
             <div style={{ overflowY: 'auto', flex: 1 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
@@ -775,9 +775,9 @@ export const Dashboard: React.FC = () => {
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{d.id}</div>
                       </td>
                       <td style={{ padding: '8px' }}>
-                        <span style={{ 
-                          padding: '2px 8px', 
-                          borderRadius: '12px', 
+                        <span style={{
+                          padding: '2px 8px',
+                          borderRadius: '12px',
                           fontSize: '0.7rem',
                           background: d.status === 'REVOKED' ? 'var(--error)' : 'var(--success)',
                           color: '#fff'
@@ -788,8 +788,8 @@ export const Dashboard: React.FC = () => {
                       <td style={{ padding: '8px' }}>{new Date(d.lastSeenAt).toLocaleString()}</td>
                       <td style={{ padding: '8px', textAlign: 'right' }}>
                         {d.status !== 'REVOKED' && (
-                          <button 
-                            className="btn btn-secondary" 
+                          <button
+                            className="btn btn-secondary"
                             style={{ padding: '4px 12px', fontSize: '0.75rem', borderColor: 'var(--error)', color: 'var(--error)' }}
                             onClick={() => handleRevokeDevice(d.id)}
                             disabled={isRevoking}
@@ -825,13 +825,13 @@ export const Dashboard: React.FC = () => {
               </div>
               <button className="btn btn-secondary" onClick={() => setShowStorageHealth(false)}>Close</button>
             </div>
-            
+
             <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
               DevSync uses Content-Addressable Storage. We can cryptographically verify that your files on the server have not been corrupted or tampered with.
             </p>
 
-            <button 
-              className="btn btn-primary" 
+            <button
+              className="btn btn-primary"
               style={{ padding: '12px', fontSize: '1rem', width: '100%', justifyContent: 'center', marginBottom: '24px' }}
               onClick={handleScanStorage}
               disabled={isScanning}
@@ -856,7 +856,7 @@ export const Dashboard: React.FC = () => {
                     {scanResult.corrupted.length}
                   </span>
                 </div>
-                
+
                 {scanResult.corrupted.length > 0 && (
                   <div>
                     <h4 style={{ color: 'var(--error)', marginBottom: '8px' }}>Corrupted Hashes:</h4>
@@ -867,7 +867,7 @@ export const Dashboard: React.FC = () => {
                     </ul>
                   </div>
                 )}
-                
+
                 {scanResult.corrupted.length === 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--success)', marginTop: '16px' }}>
                     <CheckCircle2 size={16} />
@@ -880,7 +880,7 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-   
+
       {showActivity && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div className="glass-panel" style={{ width: '800px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '24px', background: 'var(--bg-primary)' }}>
@@ -891,7 +891,7 @@ export const Dashboard: React.FC = () => {
               </div>
               <button className="btn btn-secondary" onClick={() => setShowActivity(false)}>Close</button>
             </div>
-            
+
             <div style={{ overflowY: 'auto', flex: 1 }}>
               {isLoadingActivity ? (
                 <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>Loading activity...</div>
@@ -927,7 +927,7 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-   
+
       {showTrash && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div className="glass-panel" style={{ width: '800px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '24px', background: 'var(--bg-primary)' }}>
@@ -938,7 +938,7 @@ export const Dashboard: React.FC = () => {
               </div>
               <button className="btn btn-secondary" onClick={() => setShowTrash(null)}>Close</button>
             </div>
-            
+
             <div style={{ overflowY: 'auto', flex: 1 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
@@ -954,8 +954,8 @@ export const Dashboard: React.FC = () => {
                       <td style={{ padding: '8px' }}>{f.path}</td>
                       <td style={{ padding: '8px' }}>{new Date(f.updatedAt).toLocaleString()}</td>
                       <td style={{ padding: '8px', textAlign: 'right' }}>
-                        <button 
-                          className="btn btn-primary" 
+                        <button
+                          className="btn btn-primary"
                           style={{ padding: '4px 12px', fontSize: '0.75rem' }}
                           onClick={() => handleRestoreDeleted(f.id)}
                           disabled={isRestoringDeleted}
@@ -1034,7 +1034,7 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-  
+
       {showTeam && workspaces.length > 0 && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, animation: 'fadeIn 0.2s ease' }}>
           <div className="glass-panel" style={{ width: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', padding: '24px' }}>
@@ -1042,9 +1042,9 @@ export const Dashboard: React.FC = () => {
               <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Users size={20} color="var(--accent-primary)" /> Workspace Team</h2>
               <button className="btn btn-secondary" onClick={() => setShowTeam(false)}>Close</button>
             </div>
-            
+
             <div style={{ flex: 1, overflowY: 'auto' }}>
-           
+
               <div style={{ marginBottom: '24px' }}>
                 <h3 style={{ fontSize: '0.875rem', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '12px' }}>Current Members</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -1058,7 +1058,7 @@ export const Dashboard: React.FC = () => {
                         {m.role === 'OWNER' ? (
                           <span style={{ fontSize: '0.75rem', padding: '4px 8px', borderRadius: '4px', background: 'var(--accent-glow)', color: 'var(--accent-primary)', fontWeight: 600 }}>OWNER</span>
                         ) : (
-                          <select 
+                          <select
                             style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--glass-border)', borderRadius: '4px', padding: '4px 8px', fontSize: '0.75rem' }}
                             value={m.role}
                             onChange={async (e) => {
@@ -1077,8 +1077,8 @@ export const Dashboard: React.FC = () => {
                           </select>
                         )}
                         {m.role !== 'OWNER' && (
-                          <button 
-                            className="btn" 
+                          <button
+                            className="btn"
                             style={{ padding: '4px', color: 'var(--error)' }}
                             onClick={async () => {
                               if (!confirm('Remove member?')) return;
@@ -1103,19 +1103,19 @@ export const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-             
+
               <div>
                 <h3 style={{ fontSize: '0.875rem', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '12px' }}>Invite Member</h3>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <input 
-                    type="email" 
-                    placeholder="Email address..." 
-                    className="input" 
+                  <input
+                    type="email"
+                    placeholder="Email address..."
+                    className="input"
                     style={{ flex: 1 }}
                     value={inviteEmail}
                     onChange={e => setInviteEmail(e.target.value)}
                   />
-                  <select 
+                  <select
                     className="input"
                     value={inviteRole}
                     onChange={e => setInviteRole(e.target.value)}
@@ -1124,7 +1124,7 @@ export const Dashboard: React.FC = () => {
                     <option value="EDITOR">EDITOR</option>
                     <option value="VIEWER">VIEWER</option>
                   </select>
-                  <button 
+                  <button
                     className="btn btn-primary"
                     disabled={isInviting || !inviteEmail}
                     onClick={async () => {
@@ -1148,16 +1148,16 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       )}
-      
-     
+
+
       {showActivity && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, animation: 'fadeIn 0.2s ease' }}>
           <div className="glass-panel" style={{ width: '800px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={20} color="var(--accent-primary)" /> System Activity Logs</h2>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button 
-                  className="btn btn-secondary" 
+                <button
+                  className="btn btn-secondary"
                   onClick={async () => {
                     setIsLoadingAudit(true);
                     const res = await window.electronAPI.getGlobalAuditLogs();
@@ -1171,7 +1171,7 @@ export const Dashboard: React.FC = () => {
                 <button className="btn btn-secondary" onClick={() => setShowActivity(false)}>Close</button>
               </div>
             </div>
-            
+
             <div style={{ flex: 1, overflowY: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                 <thead>
@@ -1222,8 +1222,8 @@ export const Dashboard: React.FC = () => {
                   <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>Require Device Approval</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>New devices must be approved by admins to sync</div>
                 </div>
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   checked={workspacePolicies.requireDeviceApproval}
                   onChange={e => setWorkspacePolicies({ ...workspacePolicies, requireDeviceApproval: e.target.checked })}
                 />
@@ -1231,8 +1231,8 @@ export const Dashboard: React.FC = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
                 <label style={{ fontWeight: 500, fontSize: '0.875rem' }}>Storage Quota (GB)</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   className="input"
                   style={{ width: '100%' }}
                   value={Math.round(workspacePolicies.storageQuotaBytes / (1024 * 1024 * 1024))}
@@ -1245,16 +1245,16 @@ export const Dashboard: React.FC = () => {
                   <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>Allow External Sharing</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Permit sharing project folders outside workspace</div>
                 </div>
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   checked={workspacePolicies.allowExternalSharing}
                   onChange={e => setWorkspacePolicies({ ...workspacePolicies, allowExternalSharing: e.target.checked })}
                 />
               </div>
 
-              <button 
-                type="submit" 
-                className="btn btn-primary" 
+              <button
+                type="submit"
+                className="btn btn-primary"
                 style={{ width: '100%', padding: '12px', marginTop: '12px' }}
                 disabled={isUpdatingPolicies}
               >

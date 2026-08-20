@@ -12,7 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startSSOLogin: (provider) => ipcRenderer.invoke('auth:sso', provider),
   registerDevice: () => ipcRenderer.invoke('device:register'),
 
-  // Tray / sync state
+
   setTrayStatus: (status) => ipcRenderer.invoke('tray:updateStatus', status),
   getTrayPaused: () => ipcRenderer.invoke('tray:getSyncPaused'),
   onSyncPaused: (callback) => ipcRenderer.on('sync:setPaused', (_e, paused) => callback(paused)),
@@ -21,12 +21,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onTrayOpenHistory:   (callback) => ipcRenderer.on('tray:openHistory',   callback),
   onTrayOpenDevices:   (callback) => ipcRenderer.on('tray:openDevices',   callback),
 
-  // Mass-delete recovery
+
   onMassDeleteWarning: (callback) => ipcRenderer.on('watcher:massDeleteWarning', (_e, count) => callback(count)),
   resumeAfterMassDelete: () => ipcRenderer.invoke('sync:resumeAfterMassDelete'),
   discardMassDelete: () => ipcRenderer.invoke('sync:discardMassDelete'),
 
-  // Project API
+
   getWorkspaces: () => ipcRenderer.invoke('api:getWorkspaces'),
   createWorkspace: (name) => ipcRenderer.invoke('api:createWorkspace', name),
   addWorkspaceMember: (workspaceId, email, role) => ipcRenderer.invoke('api:addWorkspaceMember', workspaceId, email, role),
@@ -37,25 +37,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createProject: (name, workspaceId, localPath) => ipcRenderer.invoke('api:createProject', name, workspaceId, localPath),
   getLocalProjects: () => ipcRenderer.invoke('db:getLocalProjects'),
 
-  // History & Restore
+
   getProjectHistory: (projectId) => ipcRenderer.invoke('api:getProjectHistory', projectId),
   restoreFile: (projectId, hash, relativePath) => ipcRenderer.invoke('api:restoreFile', projectId, hash, relativePath),
   getDeletedFiles: (projectId) => ipcRenderer.invoke('api:getDeletedFiles', projectId),
   restoreDeletedFile: (projectId, fileId) => ipcRenderer.invoke('api:restoreDeletedFile', projectId, fileId),
 
-  // Audit Logs
+
   getGlobalAuditLogs: () => ipcRenderer.invoke('api:getGlobalAuditLogs'),
   getProjectAuditLogs: (projectId) => ipcRenderer.invoke('api:getProjectAuditLogs', projectId),
 
-  // Conflicts
+
   getConflicts: (projectId) => ipcRenderer.invoke('api:getConflicts', projectId),
   resolveConflict: (projectId, conflictId, resolution) => ipcRenderer.invoke('api:resolveConflict', projectId, conflictId, resolution),
 
-  // Devices
+
   getDevices: () => ipcRenderer.invoke('api:getDevices'),
   revokeDevice: (deviceId) => ipcRenderer.invoke('api:revokeDevice', deviceId),
 
-  // Storage Health
+
   verifyStorage: () => ipcRenderer.invoke('api:verifyStorage'),
   getStorageStats: () => ipcRenderer.invoke('api:getStorageStats')
 });

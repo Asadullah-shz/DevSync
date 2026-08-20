@@ -54,7 +54,7 @@ export const getSystemMetrics = async (req: Request, res: Response, next: NextFu
     const totalWorkspaces = await db.workspace.count();
     const totalDevices = await db.device.count();
     const totalProjects = await db.project.count();
-    
+
     res.json({
       metrics: {
         totalUsers,
@@ -84,7 +84,7 @@ export const getDevices = async (req: Request, res: Response, next: NextFunction
 export const updateDeviceStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { deviceId } = req.params;
-    const { status } = req.body; // APPROVED | REJECTED | PENDING
+    const { status } = req.body;
     const device = await db.device.update({
       where: { id: deviceId },
       data: { status }

@@ -10,7 +10,7 @@ class SyncQueueService {
   constructor() {
     this.workerInterval = setInterval(() => this.processQueue(), 5000);
     this.activeOperations = 0;
-    this.MAX_CONCURRENT = 3; 
+    this.MAX_CONCURRENT = 3;
   }
 
 
@@ -22,7 +22,7 @@ class SyncQueueService {
     const db = getDb();
     const project = await db.get('SELECT * FROM local_projects WHERE project_id = ?', [projectId]);
     if (!project) return;
-    
+
 
     const relPath = path.relative(project.local_path, filePath).replace(/\\/g, '/');
 
@@ -31,21 +31,21 @@ class SyncQueueService {
         id, operation_id, project_id, device_id, operation_type, path, hash
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `, [id, opId, projectId, project.device_id, type, relPath, null]);
-    
+
     console.log(`[SYNC QUEUE] Enqueued ${type} operation for ${relPath}`);
   }
 
- 
+
   async processQueue() {
     let db;
     try {
       db = getDb();
     } catch (e) {
-      return; 
+      return;
     }
 
     const pendingOps = await db.all(`
-      SELECT * FROM sync_queue 
+      SELECT * FROM sync_queue
       WHERE status = 'PENDING' OR (status = 'FAILED' AND retry_count < 3)
       ORDER BY created_at ASC
       LIMIT 10
@@ -53,14 +53,14 @@ class SyncQueueService {
 
     if (!pendingOps || pendingOps.length === 0) return;
 
-    // Respect concurrency limit — don't pile up more work if already busy
+
     if (this.activeOperations >= this.MAX_CONCURRENT) {
       console.log(`[SYNC QUEUE] Concurrency limit reached (${this.activeOperations}/${this.MAX_CONCURRENT}), deferring.`);
       return;
     }
 
     console.log(`[SYNC QUEUE] Processing ${pendingOps.length} pending operations...`);
-    
+
 
     const projectOps = {};
     for (const op of pendingOps) {
@@ -87,22 +87,22 @@ class SyncQueueService {
             const stats = await fs.stat(absPath);
             size = stats.size;
             hash = await hashService.hashFile(absPath);
-            
-            const CHUNK_SIZE = 5 * 1024 * 1024; 
+
+            const CHUNK_SIZE = 5 * 1024 * 1024;
             if (size <= CHUNK_SIZE) {
               await apiService.uploadFile('/storage/upload', absPath);
             } else {
               const uploadId = `UP-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
               const totalChunks = Math.ceil(size / CHUNK_SIZE);
               console.log(`[SYNC QUEUE] File too large (${size} bytes). Uploading in ${totalChunks} chunks...`);
-              
+
               for (let i = 0; i < totalChunks; i++) {
                 const start = i * CHUNK_SIZE;
                 const end = Math.min(start + CHUNK_SIZE, size);
                 await apiService.uploadChunk('/storage/upload/chunk', absPath, uploadId, i, start, end);
                 console.log(`[SYNC QUEUE] Uploaded chunk ${i + 1}/${totalChunks} for ${op.path}`);
               }
-              
+
               const completeRes = await apiService.completeChunkUpload('/storage/upload/complete', uploadId, totalChunks);
               if (completeRes.hash !== hash) {
                  console.warn(`[SYNC QUEUE] Hash mismatch after chunked upload! Local: ${hash}, Server: ${completeRes.hash}`);
@@ -121,8 +121,8 @@ class SyncQueueService {
         } catch (err) {
           console.error(`[SYNC QUEUE] Error preparing ${op.id}:`, err);
           await db.run(`
-            UPDATE sync_queue 
-            SET status = ?, last_attempt = CURRENT_TIMESTAMP, retry_count = retry_count + 1, error = ? 
+            UPDATE sync_queue
+            SET status = ?, last_attempt = CURRENT_TIMESTAMP, retry_count = retry_count + 1, error = ?
             WHERE id = ?
           `, ['FAILED', err.message, op.id]);
         }
@@ -144,8 +144,8 @@ class SyncQueueService {
 
         for (const op of ops) {
           await db.run(`
-            UPDATE sync_queue 
-            SET status = ?, last_attempt = CURRENT_TIMESTAMP, error = NULL 
+            UPDATE sync_queue
+            SET status = ?, last_attempt = CURRENT_TIMESTAMP, error = NULL
             WHERE id = ?
           `, ['COMPLETED', op.id]);
           console.log(`[SYNC QUEUE] Successfully processed ${op.id} (${op.operation_type} ${op.path})`);
@@ -161,8 +161,8 @@ class SyncQueueService {
         }
         for (const op of ops) {
            await db.run(`
-            UPDATE sync_queue 
-            SET status = ?, last_attempt = CURRENT_TIMESTAMP, retry_count = retry_count + 1, error = ? 
+            UPDATE sync_queue
+            SET status = ?, last_attempt = CURRENT_TIMESTAMP, retry_count = retry_count + 1, error = ?
             WHERE id = ?
           `, ['FAILED', err.message, op.id]);
         }
@@ -177,7 +177,7 @@ class SyncQueueService {
     try {
       db = getDb();
     } catch (e) {
-      return; 
+      return;
     }
 
     const project = await db.get('SELECT * FROM local_projects WHERE project_id = ?', [projectId]);
@@ -200,15 +200,15 @@ class SyncQueueService {
       let lastTimestamp = project.last_sync_cursor;
 
       for (const op of res.operations) {
-        // Skip operations originating from this very device
+
         if (op.deviceId === deviceIdentity.device_id) {
           lastTimestamp = op.createdAt;
           continue;
         }
 
         const absPath = path.join(project.local_path, op.path);
-        
-        // Ignore this file change in the watcher so we don't upload what we just downloaded
+
+
         watcherService.ignoreNextEvent(absPath);
 
         try {
@@ -222,7 +222,7 @@ class SyncQueueService {
               await fs.unlink(absPath);
               console.log(`[SYNC PULL] Deleted ${op.path}`);
             } catch (e) {
-              // Ignore if already deleted
+
             }
           }
         } catch (err) {
@@ -232,7 +232,7 @@ class SyncQueueService {
         lastTimestamp = op.createdAt;
       }
 
-      // Update cursor
+
       if (lastTimestamp) {
         await db.run('UPDATE local_projects SET last_sync_cursor = ? WHERE project_id = ?', [lastTimestamp, projectId]);
       }

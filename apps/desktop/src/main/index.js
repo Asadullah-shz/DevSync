@@ -3,13 +3,13 @@ const path = require('path');
 const http = require('http');
 const db = require('./database/db');
 
-// Low-spec optimization: cap JS heap size and disable hardware GPU overhead
+
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=192 --gc-interval=100');
 app.disableHardwareAcceleration();
 
 let tray;
 let syncPaused = false;
-let currentTrayStatus = 'SYNCED'; // SYNCED | SYNCING | CONFLICT | OFFLINE
+let currentTrayStatus = 'SYNCED';
 
 const TRAY_STATUS_LABELS = {
   SYNCED:   '✓  DevSync — All synced',
@@ -71,20 +71,20 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
     },
-    // Matches the dark theme
+
     backgroundColor: '#0a0a0c',
   });
 
-  // Check if we are in dev mode (Vite running)
+
   if (process.argv.includes('--dev')) {
     mainWindow.loadURL('http://localhost:5180');
     mainWindow.webContents.openDevTools();
   } else {
-    // In production, load the built React app
+
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
   }
 
-  // Hide the window instead of closing it
+
   mainWindow.on('close', (event) => {
     if (!app.isQuiting) {
       event.preventDefault();
@@ -94,7 +94,7 @@ function createWindow() {
 }
 
 function createTray() {
-  // A simple 16x16 transparent PNG placeholder icon
+
   const base64Icon = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
   const icon = nativeImage.createFromDataURL(base64Icon);
 
@@ -143,8 +143,8 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  // Never quit when windows close. The app stays in the system tray.
-  // We handle manual quit via context menu.
+
+
 });
 
 const watcherService = require('./services/watcher.service');
@@ -169,7 +169,7 @@ ipcMain.on('watcher:start', (event, projectId, folderPath) => {
     }
   });
 
-  // Register mass-delete circuit-breaker listener
+
   watcherService.onMassDeleteWarning((count) => {
     currentTrayStatus = 'CONFLICT';
     rebuildTrayMenu();
@@ -185,12 +185,12 @@ ipcMain.on('watcher:stop', () => {
   watcherService.stopWatching();
 });
 
-// Mass-delete recovery IPC
+
 ipcMain.handle('sync:resumeAfterMassDelete', () => {
   watcherService.flushPendingDeletes();
   currentTrayStatus = 'SYNCING';
   rebuildTrayMenu();
-  // Auto-reset tray to SYNCED after flush
+
   setTimeout(() => {
     if (currentTrayStatus === 'SYNCING') {
       currentTrayStatus = 'SYNCED';
@@ -207,7 +207,7 @@ ipcMain.handle('sync:discardMassDelete', () => {
   return { success: true };
 });
 
-// Tray state IPC
+
 ipcMain.handle('tray:updateStatus', (event, status) => {
   currentTrayStatus = status;
   rebuildTrayMenu();
@@ -221,7 +221,7 @@ ipcMain.handle('tray:getSyncPaused', () => {
 ipcMain.handle('device:getStatus', async () => {
   const deviceService = require('./services/device.service');
   const apiService = require('./services/api.service');
-  
+
   const identity = await deviceService.getIdentity();
   const session = await apiService.getSession();
   return {
@@ -233,19 +233,19 @@ ipcMain.handle('device:getStatus', async () => {
 });
 
 
-// SSO Support
+
 let ssoServer = null;
 
 ipcMain.handle('auth:sso', async (event, provider) => {
   return new Promise((resolve) => {
-    // Start local server to listen for SSO callback
+
     if (ssoServer) {
       ssoServer.close();
     }
 
     ssoServer = http.createServer((req, res) => {
-      // We expect the server to redirect here, or the callback HTML to ping this local server
-      // Or we can just have the server's ssoCallback redirect to http://localhost:13337?accessToken=...&refreshToken=...
+
+
       const url = new URL(req.url, 'http://localhost:13337');
       const accessToken = url.searchParams.get('accessToken');
       const refreshToken = url.searchParams.get('refreshToken');
@@ -253,8 +253,8 @@ ipcMain.handle('auth:sso', async (event, provider) => {
       if (accessToken && refreshToken) {
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end('<html><body><h1>SSO Successful</h1><p>You can close this window and return to DevSync.</p><script>window.close()</script></body></html>');
-        
-        // Mock user details since we just have token, the renderer will decode JWT or fetch /me
+
+
         const mockUser = {
           id: 'SSO-USER',
           email: 'sso@example.com',
@@ -264,7 +264,7 @@ ipcMain.handle('auth:sso', async (event, provider) => {
         resolve({ success: true, user: mockUser, accessToken, refreshToken });
         ssoServer.close();
         ssoServer = null;
-        
+
         if (mainWindow) {
           mainWindow.show();
           mainWindow.focus();
@@ -276,13 +276,13 @@ ipcMain.handle('auth:sso', async (event, provider) => {
     });
 
     ssoServer.listen(13337, () => {
-      // Tell browser to open the SSO URL, passing our local server as a state/redirect URI if needed
-      // Actually DevSync server `auth.controller.ts` is currently returning an HTML page with postMessage.
-      // We need to modify server `auth.controller.ts` to redirect to localhost:13337 if coming from desktop.
+
+
+
       shell.openExternal(`http://localhost:3000/api/v1/auth/${provider}?desktop=true`);
     });
 
-    // Timeout after 5 minutes
+
     setTimeout(() => {
       if (ssoServer) {
         ssoServer.close();
@@ -313,7 +313,7 @@ ipcMain.handle('auth:login', async (event, email, password) => {
   }
 });
 
-// IPC handler for device registration
+
 ipcMain.handle('device:register', async () => {
   const deviceService = require('./services/device.service');
   const apiService = require('./services/api.service');
@@ -336,7 +336,7 @@ ipcMain.handle('device:register', async () => {
   }
 });
 
-// Devices API
+
 ipcMain.handle('api:getDevices', async () => {
   const apiService = require('./services/api.service');
   try {
@@ -359,7 +359,7 @@ ipcMain.handle('api:revokeDevice', async (event, deviceId) => {
   }
 });
 
-// Storage Health API
+
 ipcMain.handle('api:verifyStorage', async () => {
   const apiService = require('./services/api.service');
   try {
@@ -380,7 +380,7 @@ ipcMain.handle('api:getStorageStats', async () => {
   }
 });
 
-// Workspace API
+
 ipcMain.handle('api:getWorkspaces', async () => {
   const apiService = require('./services/api.service');
   try {
@@ -467,13 +467,13 @@ ipcMain.handle('api:createProject', async (event, name, workspaceId, localPath) 
   const apiService = require('./services/api.service');
   const deviceService = require('./services/device.service');
   try {
-    // 1. Create on backend
+
     const data = await apiService.request('/projects', {
       method: 'POST',
       body: JSON.stringify({ name, workspaceId })
     });
-    
-    // 2. Register local folder to this project
+
+
     const identity = await deviceService.getIdentity();
     await db.getDb().run(
       'INSERT INTO local_projects (project_id, local_path, device_id) VALUES (?, ?, ?)',
@@ -498,7 +498,7 @@ ipcMain.handle('db:getLocalProjects', async () => {
   }
 });
 
-// History & Restore API
+
 ipcMain.handle('api:getProjectHistory', async (event, projectId) => {
   const apiService = require('./services/api.service');
   try {
@@ -509,7 +509,7 @@ ipcMain.handle('api:getProjectHistory', async (event, projectId) => {
   }
 });
 
-// Audit Logs
+
 ipcMain.handle('api:getGlobalAuditLogs', async () => {
   const apiService = require('./services/api.service');
   try {
@@ -534,19 +534,19 @@ ipcMain.handle('api:restoreFile', async (event, projectId, hash, relativePath) =
   const apiService = require('./services/api.service');
   const watcherService = require('./services/watcher.service');
   const path = require('path');
-  
+
   try {
     const localProject = await db.getDb().get('SELECT * FROM local_projects WHERE project_id = ?', [projectId]);
     if (!localProject) throw new Error('Local project not found');
 
     const absPath = path.join(localProject.local_path, relativePath);
-    
-    // Tell watcher to ignore the overwrite so we don't infinitely loop
-    // Wait, actually for a restore, we DO want the watcher to pick it up and upload it as a new version!
-    // We just want it to be considered a new MODIFY event.
-    
+
+
+
+
+
     await apiService.downloadFile(`/storage/download/${hash}`, absPath);
-    
+
     return { success: true };
   } catch (err) {
     return { success: false, error: err.message };

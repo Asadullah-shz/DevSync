@@ -4,7 +4,7 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 
-// Use app data directory for persistence, but for dev we use a temp dir or local dir
+
 const dbDir = path.join(os.homedir(), '.devsync');
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
@@ -21,7 +21,7 @@ async function initDatabase() {
     driver: sqlite3.Database
   });
 
-  // Optimize SQLite database parameters for RAM conservation and WAL performance
+
   await dbInstance.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA synchronous = NORMAL;
@@ -45,14 +45,14 @@ async function initDatabase() {
       error TEXT
     );
   `);
-  
-  // Create an index to quickly find pending jobs
+
+
   await dbInstance.exec(`
-    CREATE INDEX IF NOT EXISTS idx_sync_queue_status 
+    CREATE INDEX IF NOT EXISTS idx_sync_queue_status
     ON sync_queue(status)
   `);
 
-  // Phase 4: Device Identity
+
   await dbInstance.exec(`
     CREATE TABLE IF NOT EXISTS device_identity (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,7 +63,7 @@ async function initDatabase() {
     );
   `);
 
-  // Phase 3/4: Auth Session
+
   await dbInstance.exec(`
     CREATE TABLE IF NOT EXISTS auth_session (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,7 +73,7 @@ async function initDatabase() {
     );
   `);
 
-  // Phase 7: Local Projects
+
   await dbInstance.exec(`
     CREATE TABLE IF NOT EXISTS local_projects (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
