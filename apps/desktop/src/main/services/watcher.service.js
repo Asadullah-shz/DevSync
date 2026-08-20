@@ -88,7 +88,14 @@ class WatcherService {
     const baseIgnores = [
       /(^|[\/\\])\../,
       '**/.git/**',
-      '**/.dev-sync/**'
+      '**/.dev-sync/**',
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/build/**',
+      '**/out/**',
+      '**/target/**',
+      '**/.next/**',
+      '**/*.log'
     ];
 
     this.watcher = chokidar.watch(directoryPath, {
@@ -96,8 +103,8 @@ class WatcherService {
       persistent: true,
       ignoreInitial: true,
       awaitWriteFinish: {
-        stabilityThreshold: 500,
-        pollInterval: 100
+        stabilityThreshold: 1000,
+        pollInterval: 250
       }
     });
 

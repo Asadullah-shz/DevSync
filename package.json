@@ -11,6 +11,7 @@
     "dev:server": "npm run dev -w apps/server",
     "dev:desktop": "npm run dev -w apps/desktop",
     "build": "npm run build --workspaces --if-present",
+    "package:desktop": "npm run package -w apps/desktop",
     "test": "vitest run",
     "lint": "eslint .",
     "format": "prettier --write ."

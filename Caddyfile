@@ -1,0 +1,12 @@
+devsync.yourdomain.com {
+    reverse_proxy server:3000
+
+    header {
+        # Secure headers
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-XSS-Protection "1; mode=block"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}

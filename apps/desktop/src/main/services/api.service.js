@@ -158,6 +158,13 @@ class ApiService {
     }
   }
 
+  async updateWorkspacePolicies(workspaceId, policies) {
+    return this.request(`/api/v1/workspaces/${workspaceId}/policies`, {
+      method: 'PATCH',
+      body: JSON.stringify(policies)
+    });
+  }
+
   async getSession() {
     return await getDb().get('SELECT * FROM auth_session ORDER BY id DESC LIMIT 1');
   }

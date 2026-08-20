@@ -46,6 +46,16 @@ export const Dashboard: React.FC = () => {
   const [inviteRole, setInviteRole] = useState('VIEWER');
   const [isInviting, setIsInviting] = useState(false);
 
+  // V3 Features: Workspace Settings and Device Approval
+  const [isPendingApproval, setIsPendingApproval] = useState(false);
+  const [showWorkspaceSettings, setShowWorkspaceSettings] = useState<any>(null);
+  const [workspacePolicies, setWorkspacePolicies] = useState<any>({
+    requireDeviceApproval: false,
+    storageQuotaBytes: 10 * 1024 * 1024 * 1024,
+    allowExternalSharing: false
+  });
+  const [isUpdatingPolicies, setIsUpdatingPolicies] = useState(false);
+
   useEffect(() => {
     const loadData = async () => {
       if (!window.electronAPI) return;
@@ -117,6 +127,10 @@ export const Dashboard: React.FC = () => {
       window.electronAPI.onMassDeleteWarning((count: number) => {
         setMassDeleteCount(count);
       });
+
+      window.electronAPI.onDevicePendingApproval(() => {
+        setIsPendingApproval(true);
+      });
     }
 
     return () => {
@@ -130,6 +144,26 @@ export const Dashboard: React.FC = () => {
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleUpdatePolicies = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!showWorkspaceSettings || !window.electronAPI) return;
+
+    setIsUpdatingPolicies(true);
+    try {
+      const res = await window.electronAPI.updateWorkspacePolicies(showWorkspaceSettings.id, workspacePolicies);
+      if (res.success) {
+        alert("Workspace policies updated successfully.");
+        setShowWorkspaceSettings(null);
+      } else {
+        alert(res.error || "Failed to update policies");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsUpdatingPolicies(false);
+    }
   };
 
   const handleNewProject = async () => {
@@ -386,8 +420,26 @@ export const Dashboard: React.FC = () => {
         </div>
       </header>
 
-   
-      <main style={{ padding: '0 16px', display: 'flex', gap: '16px', flex: 1, overflow: 'hidden', marginBottom: '16px' }}>
+      {isPendingApproval && (
+        <div style={{ background: '#7f1d1d', border: '1px solid #f87171', color: '#fca5a5', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '12px', borderRadius: '8px', margin: '16px 16px 0' }}>
+          <AlertCircle size={20} />
+          <div style={{ flex: 1, fontSize: '0.875rem', fontWeight: 500 }}>
+            Sync Paused: This device is pending approval from a Workspace Administrator.
+          </div>
+          <button 
+            className="btn" 
+            style={{ padding: '6px 12px', background: '#991b1b', color: 'white', border: 'none', fontSize: '0.75rem' }}
+            onClick={async () => {
+              // Try to check approval status
+              setIsPendingApproval(false);
+            }}
+          >
+            Retry Sync
+          </button>
+        </div>
+      )}
+
+      <main style={{ padding: '16px', display: 'flex', gap: '16px', flex: 1, overflow: 'hidden' }}>
         
      
         <aside className="glass-panel" style={{ width: '250px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -425,6 +477,21 @@ export const Dashboard: React.FC = () => {
             <Users size={16} />
             <span style={{ fontSize: '0.875rem' }}>Workspace Team</span>
           </div>
+
+          {workspaces.length > 0 && (
+            <div 
+              style={{ padding: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}
+              onClick={() => {
+                setShowWorkspaceSettings(workspaces[0]);
+                if (workspaces[0].policies) {
+                  setWorkspacePolicies(workspaces[0].policies);
+                }
+              }}
+            >
+              <Settings size={16} />
+              <span style={{ fontSize: '0.875rem' }}>Workspace Settings</span>
+            </div>
+          )}
 
           <div 
             style={{ padding: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}
@@ -1138,6 +1205,62 @@ export const Dashboard: React.FC = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+      {showWorkspaceSettings && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="glass-panel" style={{ width: '500px', background: 'var(--bg-primary)', padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={20} color="var(--accent-primary)" /> Workspace Policies</h2>
+              <button className="btn btn-secondary" onClick={() => setShowWorkspaceSettings(null)}>Close</button>
+            </div>
+
+            <form onSubmit={handleUpdatePolicies} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
+                <div>
+                  <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>Require Device Approval</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>New devices must be approved by admins to sync</div>
+                </div>
+                <input 
+                  type="checkbox" 
+                  checked={workspacePolicies.requireDeviceApproval}
+                  onChange={e => setWorkspacePolicies({ ...workspacePolicies, requireDeviceApproval: e.target.checked })}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
+                <label style={{ fontWeight: 500, fontSize: '0.875rem' }}>Storage Quota (GB)</label>
+                <input 
+                  type="number" 
+                  className="input"
+                  style={{ width: '100%' }}
+                  value={Math.round(workspacePolicies.storageQuotaBytes / (1024 * 1024 * 1024))}
+                  onChange={e => setWorkspacePolicies({ ...workspacePolicies, storageQuotaBytes: Number(e.target.value) * 1024 * 1024 * 1024 })}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'var(--bg-secondary)', borderRadius: '8px' }}>
+                <div>
+                  <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>Allow External Sharing</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Permit sharing project folders outside workspace</div>
+                </div>
+                <input 
+                  type="checkbox" 
+                  checked={workspacePolicies.allowExternalSharing}
+                  onChange={e => setWorkspacePolicies({ ...workspacePolicies, allowExternalSharing: e.target.checked })}
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                className="btn btn-primary" 
+                style={{ width: '100%', padding: '12px', marginTop: '12px' }}
+                disabled={isUpdatingPolicies}
+              >
+                {isUpdatingPolicies ? 'Saving Policies...' : 'Save Policies'}
+              </button>
+            </form>
           </div>
         </div>
       )}

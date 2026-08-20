@@ -454,21 +454,45 @@
       </div>
     </div>
 
-    <!-- Row 4: Live Audit Events -->
-    <div class="glass-card log-card">
-      <div class="metric-label" style="margin-bottom: 16px;">Recent Audit Events</div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
-        <thead>
-          <tr style="border-bottom: 1px solid var(--glass-border); text-align: left;">
-            <th style="padding: 6px 8px; color: var(--text-muted); font-weight: 600;">Timestamp</th>
-            <th style="padding: 6px 8px; color: var(--text-muted); font-weight: 600;">Action</th>
-            <th style="padding: 6px 8px; color: var(--text-muted); font-weight: 600;">User</th>
-          </tr>
-        </thead>
-        <tbody id="audit-log-body">
-          <tr><td colspan="3" style="padding: 16px 8px; color: var(--text-muted);">Loading audit events...</td></tr>
-        </tbody>
-      </table>
+    <!-- Row 4: Device Approvals & Live Audit Events -->
+    <div class="row-2" style="margin-top: 20px;">
+      <!-- Device Approvals Card -->
+      <div class="glass-card log-card">
+        <div class="metric-label" style="margin-bottom: 16px;">Device Approvals</div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--glass-border); text-align: left;">
+              <th style="padding: 6px 8px; color: var(--text-muted); font-weight: 600;">Device ID</th>
+              <th style="padding: 6px 8px; color: var(--text-muted); font-weight: 600;">Host</th>
+              <th style="padding: 6px 8px; color: var(--text-muted); font-weight: 600;">Status</th>
+              <th style="padding: 6px 8px; color: var(--text-muted); font-weight: 600; text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="device-approvals-body">
+            <tr><td colspan="4" style="padding: 16px 8px; color: var(--text-muted);">Loading devices...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Live Audit Events Card -->
+      <div class="glass-card log-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div class="metric-label" style="margin: 0;">Recent Audit Events</div>
+          <button class="logout-btn" id="export-csv-btn" style="padding: 6px 12px; font-size: 11px;">Export CSV</button>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--glass-border); text-align: left;">
+              <th style="padding: 6px 8px; color: var(--text-muted); font-weight: 600;">Timestamp</th>
+              <th style="padding: 6px 8px; color: var(--text-muted); font-weight: 600;">Action</th>
+              <th style="padding: 6px 8px; color: var(--text-muted); font-weight: 600;">User</th>
+            </tr>
+          </thead>
+          <tbody id="audit-log-body">
+            <tr><td colspan="3" style="padding: 16px 8px; color: var(--text-muted);">Loading audit events...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -525,6 +549,26 @@
         document.getElementById('auth-container').style.display = 'block';
         document.body.style.alignItems = 'center';
       });
+
+      // Handle CSV Export
+      document.getElementById('export-csv-btn').addEventListener('click', () => {
+        if (!latestAuditLogs || latestAuditLogs.length === 0) {
+          alert('No logs to export');
+          return;
+        }
+        let csvContent = "data:text/csv;charset=utf-8,Timestamp,Action,User\n";
+        latestAuditLogs.forEach(log => {
+          const ts = new Date(log.createdAt).toLocaleString().replace(/,/g, '');
+          csvContent += `${ts},${log.action},${log.userEmail}\n`;
+        });
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `devsync_audit_logs_${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
     });
 
     function showDashboard() {
@@ -535,7 +579,11 @@
 
       initChart();
       fetchMetrics();
-      refreshInterval = setInterval(fetchMetrics, 5000);
+      fetchDevices();
+      refreshInterval = setInterval(() => {
+        fetchMetrics();
+        fetchDevices();
+      }, 5000);
     }
 
     async function fetchMetrics() {
@@ -631,6 +679,7 @@
 
       // Render live audit events
       if (data.recentAuditLogs && data.recentAuditLogs.length > 0) {
+        window.latestAuditLogs = data.recentAuditLogs;
         const tbody = document.getElementById('audit-log-body');
         tbody.innerHTML = data.recentAuditLogs.map(log => {
           const ts = new Date(log.createdAt).toLocaleString();
@@ -642,6 +691,7 @@
           </tr>`;
         }).join('');
       } else {
+        window.latestAuditLogs = [];
         document.getElementById('audit-log-body').innerHTML = '<tr><td colspan="3" style="padding: 16px 8px; color: var(--text-muted);">No audit events yet.</td></tr>';
       }
 
@@ -714,6 +764,76 @@
 
       chartInstance.update();
 
+    }
+
+    async function fetchDevices() {
+      try {
+        const res = await fetch('/api/v1/admin/devices', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok && data.devices) {
+          renderDevices(data.devices);
+        }
+      } catch (err) {
+        console.error('[Dashboard fetchDevices err]', err);
+      }
+    }
+
+    function renderDevices(devices) {
+      const tbody = document.getElementById('device-approvals-body');
+      if (devices.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="padding: 16px 8px; color: var(--text-muted);">No devices registered.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = devices.map(d => {
+        const statusColor = d.status === 'APPROVED' ? 'var(--green)' : d.status === 'PENDING' ? '#f59e0b' : 'var(--red)';
+        
+        let actionButtons = '';
+        if (d.status === 'PENDING') {
+          actionButtons = `
+            <button class="logout-btn" onclick="updateStatus('${d.id}', 'APPROVED')" style="padding: 4px 8px; font-size: 11px; border-color: var(--green); color: var(--green); margin-right: 4px;">Approve</button>
+            <button class="logout-btn" onclick="updateStatus('${d.id}', 'REJECTED')" style="padding: 4px 8px; font-size: 11px; border-color: var(--red); color: var(--red);">Deny</button>
+          `;
+        } else if (d.status === 'APPROVED') {
+          actionButtons = `
+            <button class="logout-btn" onclick="updateStatus('${d.id}', 'REJECTED')" style="padding: 4px 8px; font-size: 11px; border-color: var(--red); color: var(--red);">Revoke</button>
+          `;
+        } else {
+          actionButtons = `
+            <button class="logout-btn" onclick="updateStatus('${d.id}', 'APPROVED')" style="padding: 4px 8px; font-size: 11px; border-color: var(--green); color: var(--green);">Approve</button>
+          `;
+        }
+
+        return `<tr style="border-bottom: 1px solid var(--glass-border);">
+          <td style="padding: 8px; font-family: monospace;">${d.id.substring(0, 8)}...</td>
+          <td style="padding: 8px;">${d.name || 'Unknown'}</td>
+          <td style="padding: 8px; font-weight: 600; color: ${statusColor}">${d.status}</td>
+          <td style="padding: 8px; text-align: right;">${actionButtons}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function updateStatus(deviceId, status) {
+      try {
+        const res = await fetch(`/api/v1/admin/devices/${deviceId}/status`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ status })
+        });
+        if (res.ok) {
+          fetchDevices();
+        } else {
+          const err = await res.json();
+          alert(err.error?.message || 'Failed to update device status');
+        }
+      } catch (err) {
+        console.error(err);
+      }
     }
   </script>
   <script>

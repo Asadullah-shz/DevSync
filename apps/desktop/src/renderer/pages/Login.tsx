@@ -42,6 +42,28 @@ export const Login: React.FC = () => {
     }
   };
 
+  const handleSSO = async (provider: 'github' | 'google') => {
+    setIsLoading(true);
+    try {
+      const res = await window.electronAPI.startSSOLogin(provider);
+      if (res.success) {
+        login(res.user, res.accessToken || '', res.refreshToken || '');
+        const status = await window.electronAPI.getStatus();
+        if (!status.isRegistered) {
+          navigate('/register');
+        } else {
+          navigate('/dashboard');
+        }
+      } else {
+        alert(res.error || 'SSO Login failed');
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="app-container" style={{ alignItems: 'center', justifyContent: 'center' }}>
       
@@ -92,7 +114,7 @@ export const Login: React.FC = () => {
             </div>
           </div>
 
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px' }} disabled={isLoading}>
+          <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px', marginBottom: '16px' }} disabled={isLoading}>
             {isLoading ? 'Connecting...' : (
               <>
                 Sign In to DevSync
@@ -101,6 +123,28 @@ export const Login: React.FC = () => {
             )}
           </button>
         </form>
+
+        <div style={{ textAlign: 'center', marginBottom: '16px', color: 'var(--text-muted)' }}>
+          <small>OR</small>
+        </div>
+
+        <button 
+          onClick={() => handleSSO('github')} 
+          className="btn" 
+          style={{ width: '100%', padding: '12px', marginBottom: '8px', background: '#24292e', color: 'white' }} 
+          disabled={isLoading}
+        >
+          Sign in with GitHub
+        </button>
+
+        <button 
+          onClick={() => handleSSO('google')} 
+          className="btn" 
+          style={{ width: '100%', padding: '12px', background: 'white', color: 'black' }} 
+          disabled={isLoading}
+        >
+          Sign in with Google
+        </button>
       </div>
     </div>
   );

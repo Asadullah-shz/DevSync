@@ -1,0 +1,7 @@
+tunnel: ${TUNNEL_UUID}
+credentials-file: /home/nonroot/.cloudflared/${TUNNEL_UUID}.json
+
+ingress:
+  - hostname: devsync.yourdomain.com
+    service: http://server:3000
+  - service: http_status:404

@@ -1,6 +1,11 @@
-const { app, BrowserWindow, dialog, ipcMain, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Tray, Menu, nativeImage, shell } = require('electron');
 const path = require('path');
+const http = require('http');
 const db = require('./database/db');
+
+// Low-spec optimization: cap JS heap size and disable hardware GPU overhead
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=192 --gc-interval=100');
+app.disableHardwareAcceleration();
 
 let tray;
 let syncPaused = false;
@@ -228,6 +233,66 @@ ipcMain.handle('device:getStatus', async () => {
 });
 
 
+// SSO Support
+let ssoServer = null;
+
+ipcMain.handle('auth:sso', async (event, provider) => {
+  return new Promise((resolve) => {
+    // Start local server to listen for SSO callback
+    if (ssoServer) {
+      ssoServer.close();
+    }
+
+    ssoServer = http.createServer((req, res) => {
+      // We expect the server to redirect here, or the callback HTML to ping this local server
+      // Or we can just have the server's ssoCallback redirect to http://localhost:13337?accessToken=...&refreshToken=...
+      const url = new URL(req.url, 'http://localhost:13337');
+      const accessToken = url.searchParams.get('accessToken');
+      const refreshToken = url.searchParams.get('refreshToken');
+
+      if (accessToken && refreshToken) {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end('<html><body><h1>SSO Successful</h1><p>You can close this window and return to DevSync.</p><script>window.close()</script></body></html>');
+        
+        // Mock user details since we just have token, the renderer will decode JWT or fetch /me
+        const mockUser = {
+          id: 'SSO-USER',
+          email: 'sso@example.com',
+          name: 'SSO User'
+        };
+
+        resolve({ success: true, user: mockUser, accessToken, refreshToken });
+        ssoServer.close();
+        ssoServer = null;
+        
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        }
+      } else {
+        res.writeHead(400, { 'Content-Type': 'text/plain' });
+        res.end('Missing tokens');
+      }
+    });
+
+    ssoServer.listen(13337, () => {
+      // Tell browser to open the SSO URL, passing our local server as a state/redirect URI if needed
+      // Actually DevSync server `auth.controller.ts` is currently returning an HTML page with postMessage.
+      // We need to modify server `auth.controller.ts` to redirect to localhost:13337 if coming from desktop.
+      shell.openExternal(`http://localhost:3000/api/v1/auth/${provider}?desktop=true`);
+    });
+
+    // Timeout after 5 minutes
+    setTimeout(() => {
+      if (ssoServer) {
+        ssoServer.close();
+        ssoServer = null;
+        resolve({ success: false, error: 'SSO timed out' });
+      }
+    }, 5 * 60 * 1000);
+  });
+});
+
 ipcMain.handle('auth:login', async (event, email, password) => {
   const apiService = require('./services/api.service');
   const deviceService = require('./services/device.service');
@@ -372,6 +437,16 @@ ipcMain.handle('api:removeWorkspaceMember', async (event, workspaceId, userId) =
       method: 'DELETE'
     });
     return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('api:updateWorkspacePolicies', async (event, workspaceId, policies) => {
+  const apiService = require('./services/api.service');
+  try {
+    const data = await apiService.updateWorkspacePolicies(workspaceId, policies);
+    return { success: true, workspace: data.workspace };
   } catch (err) {
     return { success: false, error: err.message };
   }

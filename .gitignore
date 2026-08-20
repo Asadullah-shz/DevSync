@@ -2,7 +2,30 @@ node_modules
 dist
 build
 .env
+docker.env
 .DS_Store
 coverage
 .tmp
 .dev-sync
+
+# SQLite Databases & temporary transaction logs
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Build and Packaging outputs
+apps/desktop/dist
+apps/desktop/dist-package
+apps/server/dist
+packages/*/dist
+
+# Storage and Backup volumes
+storage/
+backups/
+.temp_restore/
+.temp_restore_*
+
+# Cloudflare Tunnel credentials (sensitive)
+tunnel/*.json
+tunnel/cert.pem

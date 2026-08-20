@@ -9,12 +9,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   getStatus: () => ipcRenderer.invoke('device:getStatus'),
   login: (email, password) => ipcRenderer.invoke('auth:login', email, password),
+  startSSOLogin: (provider) => ipcRenderer.invoke('auth:sso', provider),
   registerDevice: () => ipcRenderer.invoke('device:register'),
 
   // Tray / sync state
   setTrayStatus: (status) => ipcRenderer.invoke('tray:updateStatus', status),
   getTrayPaused: () => ipcRenderer.invoke('tray:getSyncPaused'),
   onSyncPaused: (callback) => ipcRenderer.on('sync:setPaused', (_e, paused) => callback(paused)),
+  onDevicePendingApproval: (callback) => ipcRenderer.on('sync:devicePendingApproval', callback),
   onTrayOpenConflicts: (callback) => ipcRenderer.on('tray:openConflicts', callback),
   onTrayOpenHistory:   (callback) => ipcRenderer.on('tray:openHistory',   callback),
   onTrayOpenDevices:   (callback) => ipcRenderer.on('tray:openDevices',   callback),
@@ -30,6 +32,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addWorkspaceMember: (workspaceId, email, role) => ipcRenderer.invoke('api:addWorkspaceMember', workspaceId, email, role),
   updateWorkspaceMemberRole: (workspaceId, userId, role) => ipcRenderer.invoke('api:updateWorkspaceMemberRole', workspaceId, userId, role),
   removeWorkspaceMember: (workspaceId, userId) => ipcRenderer.invoke('api:removeWorkspaceMember', workspaceId, userId),
+  updateWorkspacePolicies: (workspaceId, policies) => ipcRenderer.invoke('api:updateWorkspacePolicies', workspaceId, policies),
   getProjects: () => ipcRenderer.invoke('api:getProjects'),
   createProject: (name, workspaceId, localPath) => ipcRenderer.invoke('api:createProject', name, workspaceId, localPath),
   getLocalProjects: () => ipcRenderer.invoke('db:getLocalProjects'),

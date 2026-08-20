@@ -21,6 +21,14 @@ async function initDatabase() {
     driver: sqlite3.Database
   });
 
+  // Optimize SQLite database parameters for RAM conservation and WAL performance
+  await dbInstance.exec(`
+    PRAGMA journal_mode = WAL;
+    PRAGMA synchronous = NORMAL;
+    PRAGMA temp_store = MEMORY;
+    PRAGMA cache_size = -1000;
+  `);
+
   await dbInstance.exec(`
     CREATE TABLE IF NOT EXISTS sync_queue (
       id TEXT PRIMARY KEY,

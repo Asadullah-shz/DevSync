@@ -67,3 +67,30 @@ export const getSystemMetrics = async (req: Request, res: Response, next: NextFu
     next(err);
   }
 };
+
+export const getDevices = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const devices = await db.device.findMany({
+      include: {
+        user: { select: { email: true, name: true } }
+      }
+    });
+    res.json({ devices });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateDeviceStatus = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { deviceId } = req.params;
+    const { status } = req.body; // APPROVED | REJECTED | PENDING
+    const device = await db.device.update({
+      where: { id: deviceId },
+      data: { status }
+    });
+    res.json({ message: `Device status updated to ${status}`, device });
+  } catch (err) {
+    next(err);
+  }
+};

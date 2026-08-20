@@ -4,7 +4,8 @@
   "main": "src/main/index.js",
   "scripts": {
     "dev": "npx concurrently \"vite\" \"wait-on tcp:5180 && electron . --dev\"",
-    "build": "vite build"
+    "build": "vite build",
+    "package": "npm run build && electron-builder"
   },
   "dependencies": {
     "chokidar": "^3.6.0",
@@ -22,8 +23,36 @@
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^4.1.0",
     "concurrently": "^10.0.4",
-    "electron": "^27.0.0",
+    "electron": "27.3.11",
+    "electron-builder": "^24.13.3",
     "vite": "^5.0.0",
     "wait-on": "^9.1.0"
+  },
+  "build": {
+    "appId": "com.devsync.desktop",
+    "productName": "DevSync",
+    "directories": {
+      "output": "dist-package"
+    },
+    "files": [
+      "dist/**/*",
+      "src/main/**/*",
+      "src/preload/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    },
+    "asar": true
   }
 }

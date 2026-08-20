@@ -15,12 +15,14 @@ declare global {
       removeWatcherEvent: () => void;
       getStatus: () => Promise<{ isLoggedIn: boolean, isRegistered: boolean, deviceId: string | null, user: any }>;
       login: (email: string, pass: string) => Promise<{ success: boolean, user?: any, error?: string }>;
+      startSSOLogin: (provider: 'github' | 'google') => Promise<{ success: boolean, user?: any, accessToken?: string, refreshToken?: string, error?: string }>;
       registerDevice: () => Promise<{ success: boolean, deviceId?: string, error?: string }>;
 
       // Tray / sync state
       setTrayStatus: (status: 'SYNCED' | 'SYNCING' | 'CONFLICT' | 'OFFLINE') => Promise<any>;
       getTrayPaused: () => Promise<{ paused: boolean }>;
       onSyncPaused: (callback: (paused: boolean) => void) => void;
+      onDevicePendingApproval: (callback: () => void) => void;
       onTrayOpenConflicts: (callback: () => void) => void;
       onTrayOpenHistory:   (callback: () => void) => void;
       onTrayOpenDevices:   (callback: () => void) => void;
@@ -36,6 +38,7 @@ declare global {
       addWorkspaceMember: (workspaceId: string, email: string, role: string) => Promise<any>;
       updateWorkspaceMemberRole: (workspaceId: string, userId: string, role: string) => Promise<any>;
       removeWorkspaceMember: (workspaceId: string, userId: string) => Promise<any>;
+      updateWorkspacePolicies: (workspaceId: string, policies: any) => Promise<{ success: boolean, workspace?: any, error?: string }>;
       getProjects: () => Promise<{ success: boolean, projects?: any[], error?: string }>;
       createProject: (name: string, workspaceId: string, localPath: string) => Promise<{ success: boolean, project?: any, error?: string }>;
       getLocalProjects: () => Promise<{ success: boolean, localProjects?: any[], error?: string }>;

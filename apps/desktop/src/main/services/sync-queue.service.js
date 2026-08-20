@@ -10,7 +10,7 @@ class SyncQueueService {
   constructor() {
     this.workerInterval = setInterval(() => this.processQueue(), 5000);
     this.activeOperations = 0;
-    this.MAX_CONCURRENT = 3; // Max parallel file transfers
+    this.MAX_CONCURRENT = 3; 
   }
 
 
@@ -152,6 +152,13 @@ class SyncQueueService {
         }
       } catch (err) {
         console.error(`[SYNC QUEUE] Failed to push operations to server:`, err);
+        if (err.message && err.message.includes('Device requires admin approval')) {
+          const { BrowserWindow } = require('electron');
+          const windows = BrowserWindow.getAllWindows();
+          if (windows.length > 0) {
+            windows[0].webContents.send('sync:devicePendingApproval');
+          }
+        }
         for (const op of ops) {
            await db.run(`
             UPDATE sync_queue 

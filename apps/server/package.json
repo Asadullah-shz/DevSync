@@ -5,7 +5,8 @@
   "main": "src/app.ts",
   "scripts": {
     "dev": "tsx src/app.ts",
-    "restore": "tsx src/scripts/restore.ts"
+    "restore": "tsx src/scripts/restore.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1113.0",
@@ -43,9 +44,11 @@
     "@types/passport": "^1.0.17",
     "@types/passport-github2": "^1.2.9",
     "@types/passport-google-oauth20": "^2.0.17",
+    "dotenv": "^17.4.2",
     "prisma": "^5.14.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.12",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^4.1.11"
   }
 }

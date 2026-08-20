@@ -72,6 +72,13 @@ const globalLimiter = rateLimit({
 });
 app.use('/api/v1/', globalLimiter);
 
+const syncLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  message: 'Sync rate limit exceeded, please wait.',
+  store: rateLimitStore,
+});
+
 app.use(cors());
 app.use(express.json());
 app.use(passport.initialize());
@@ -87,8 +94,8 @@ app.use('/api/v1/auth', authLimiter, authRoutes);
 app.use('/api/v1/devices', deviceRoutes);
 app.use('/api/v1/workspaces', workspaceRoutes);
 app.use('/api/v1/projects', projectRoutes);
-app.use('/api/v1/storage', storageRoutes);
-app.use('/api/v1/sync', syncRoutes);
+app.use('/api/v1/storage', syncLimiter, storageRoutes);
+app.use('/api/v1/sync', syncLimiter, syncRoutes);
 app.use('/api/v1/versions', versionsRoutes);
 app.use('/api/v1/snapshots', snapshotsRoutes);
 app.use('/api/v1/conflicts', conflictsRoutes);

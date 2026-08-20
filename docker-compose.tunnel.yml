@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: devsync-tunnel
+    restart: always
+    volumes:
+      - ./tunnel:/home/nonroot/.cloudflared
+    command: tunnel --config /home/nonroot/.cloudflared/config.yml run ${TUNNEL_NAME}
+    depends_on:
+      - server
+
+  # Ensure the base server is mounted if running in same stack
+  server:
+    image: ghcr.io/asadullah-shz/devsync-server:latest
+    container_name: devsync-server
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=mongodb://mongo:27017/devsync
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - mongo
+      - redis
+
+  mongo:
+    image: mongo:latest
+    container_name: devsync-mongo
+    restart: always
+    volumes:
+      - mongo-data:/data/db
+
+  redis:
+    image: redis:alpine
+    container_name: devsync-redis
+    restart: always
+
+volumes:
+  mongo-data:
