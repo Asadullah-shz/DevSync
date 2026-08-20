@@ -7,11 +7,8 @@ on:
 
 jobs:
   build-desktop:
-    name: Build & Release Desktop (${{ matrix.os }})
+    name: Build Desktop (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    permissions:
-      contents: write
-
     strategy:
       fail-fast: false
       matrix:
@@ -35,23 +32,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Desktop Artifacts to Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload Desktop Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          fail_on_unmatched_files: false
-          files: |
+          name: desktop-artifacts-${{ matrix.os }}
+          path: |
             apps/desktop/dist-package/*.exe
             apps/desktop/dist-package/*.dmg
             apps/desktop/dist-package/*.AppImage
             apps/desktop/dist-package/*.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          if-no-files-found: warn
 
   build-server:
-    name: Package & Release Server
+    name: Package Server
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout repository
@@ -69,7 +63,6 @@ jobs:
       - name: Package Server Bundle
         run: |
           mkdir -p dist-server/devsync-server
-          # Copy server, shared packages, docker configuration, and setup guide
           cp -r apps/server dist-server/devsync-server/
           cp -r packages dist-server/devsync-server/
           cp -r tunnel dist-server/devsync-server/
@@ -81,18 +74,50 @@ jobs:
           cp .env.example dist-server/devsync-server/
           cp setup_guide.md dist-server/devsync-server/
           
-          # Clean up node_modules and development caches in the copied directory
           rm -rf dist-server/devsync-server/apps/server/node_modules
           rm -rf dist-server/devsync-server/node_modules
           
-          # Compress the bundle
           cd dist-server
           zip -r devsync-server.zip devsync-server
           cd ..
 
-      - name: Upload Server Bundle to Release
+      - name: Upload Server Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-artifact
+          path: dist-server/devsync-server.zip
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-desktop, build-server]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create Release Directory
+        run: mkdir -p release-assets
+
+      - name: Download Desktop Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: desktop-artifacts-*
+          merge-multiple: true
+
+      - name: Download Server Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: server-artifact
+          path: release-assets
+
+      - name: Upload All Assets to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist-server/devsync-server.zip
+          files: release-assets/*
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
