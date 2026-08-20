@@ -118,6 +118,10 @@ export const revokeDevice = async (req: AuthRequest, res: Response, next: NextFu
       return res.status(404).json({ error: { message: 'Device not found' } });
     }
 
+    if (device.status === 'REVOKED') {
+      return res.status(400).json({ error: { message: 'Device is already revoked' } });
+    }
+
     const revokedDevice = await db.device.update({
       where: { id: req.params.id },
       data: {
@@ -126,7 +130,11 @@ export const revokeDevice = async (req: AuthRequest, res: Response, next: NextFu
       }
     });
 
-    res.json({ device: revokedDevice });
+    await db.session.deleteMany({
+      where: { deviceId: req.params.id, userId: req.user.id }
+    });
+
+    res.json({ device: revokedDevice, success: true });
   } catch (err) {
     next(err);
   }

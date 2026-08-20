@@ -17,17 +17,24 @@ export const Login: React.FC = () => {
     
     try {
       // Fake API delay for UI demonstration
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const res = await window.electronAPI.login(email, password);
       
-      // We would normally fetch to our actual backend here:
-      // const res = await fetch('http://localhost:3000/api/v1/auth/login', ...)
-      
-      login(
-        { id: 'USR-MOCK', email, name: 'Developer' }, 
-        'mock-access', 
-        'mock-refresh'
-      );
-      navigate('/dashboard');
+      if (res.success) {
+        login(
+          res.user, 
+          'mock-access', // Desktop app relies on the sqlite db for session internally
+          'mock-refresh'
+        );
+        // After login, check if device needs registration
+        const status = await window.electronAPI.getStatus();
+        if (!status.isRegistered) {
+          navigate('/register');
+        } else {
+          navigate('/dashboard');
+        }
+      } else {
+        alert(res.error || 'Login failed');
+      }
     } catch (err) {
       console.error(err);
     } finally {

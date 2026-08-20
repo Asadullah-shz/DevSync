@@ -1,6 +1,7 @@
 import React from 'react';
 import { MemoryRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
 import { useStore } from './store';
 import './index.css';
@@ -21,6 +22,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/register" 
+          element={
+            <ProtectedRoute>
+              <Register />
             </ProtectedRoute>
           } 
         />

@@ -41,6 +41,7 @@ interface AppState {
   setDeviceId: (id: string) => void;
   setWorkspaces: (workspaces: Workspace[]) => void;
   addProject: (project: Project) => void;
+  setProjects: (projects: Project[]) => void;
   addSyncLog: (log: SyncEvent) => void;
 }
 
@@ -60,6 +61,7 @@ export const useStore = create<AppState>()(
       setDeviceId: (deviceId) => set({ deviceId }),
       setWorkspaces: (workspaces) => set({ workspaces }),
       addProject: (project) => set((state) => ({ projects: [...state.projects, project] })),
+      setProjects: (projects) => set({ projects }),
       addSyncLog: (log) => set((state) => ({ 
         syncLogs: [log, ...state.syncLogs].slice(0, 50) // Keep last 50 logs
       })),

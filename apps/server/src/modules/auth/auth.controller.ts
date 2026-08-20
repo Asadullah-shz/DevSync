@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { db } from '../../database/db.js';
@@ -17,6 +17,7 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
+  deviceId: z.string().optional(),
 });
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
@@ -28,21 +29,16 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     }
 
     const hashedPassword = await bcrypt.hash(data.password, 10);
-    // Use custom ID as per design
+
     const id = `USR-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 
-    // Note: User model does not have a password field in the schema we created.
-    // We must update the schema.prisma to include 'password' to store the hashed password.
-    // For now we'll throw an error if the user model doesn't have it, but wait, Prisma generates strictly.
-    // Let's assume we update the schema to have a password field.
-    // I will fix the schema in a moment.
     const user = await db.user.create({
       data: {
         id,
         email: data.email,
         name: data.name,
-        // password: hashedPassword, // Schema needs updating
-      } as any // Bypass TS error temporarily
+        password: hashedPassword,
+      }
     });
 
     res.status(201).json({ user: { id: user.id, email: user.email, name: user.name } });
@@ -72,6 +68,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       data: {
         id: sessionId,
         userId: user.id,
+        deviceId: data.deviceId || null,
         token: refreshToken,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       }

@@ -25,6 +25,7 @@ model Session {
   id        String   @id @map("_id")
   userId    String
   user      User     @relation(fields: [userId], references: [id])
+  deviceId  String?
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
@@ -168,7 +169,9 @@ model Conflict {
   projectId       String
   project         Project  @relation(fields: [projectId], references: [id])
   fileId          String
+  path            String
   baseVersionHash String
+  incomingHash    String?
   deviceA         String
   deviceB         String
   status          String   @default("UNRESOLVED")
@@ -182,6 +185,7 @@ model BackupJob {
   completedAt DateTime?
   size        Int?
   objects     Int?
+  path        String?
 }
 
 model AuditLog {

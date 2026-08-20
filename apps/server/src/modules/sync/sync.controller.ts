@@ -9,6 +9,7 @@ interface AuthRequest extends Request {
 
 const syncOperationSchema = z.object({
   deviceId: z.string(),
+  clientCursor: z.string().optional(),
   operations: z.array(z.object({
     type: z.enum(['CREATE', 'MODIFY', 'DELETE', 'RENAME']),
     path: z.string(),
@@ -53,17 +54,50 @@ export const processOperations = async (req: AuthRequest, res: Response, next: N
         }
       });
 
-      // Update the File and FileVersion records
+    
       if (op.type === 'CREATE' || op.type === 'MODIFY') {
         if (!op.hash || op.size === undefined) {
           throw new Error('CREATE/MODIFY operations require hash and size');
         }
 
-        // Generate consistent File ID based on project and path
+     
         const fileIdRaw = `${projectId}:${op.path}`;
         const fileId = `FILE-${crypto.createHash('md5').update(fileIdRaw).digest('hex').substring(0, 8).toUpperCase()}`;
 
-        // Upsert file
+  
+        const latestVersion = await db.fileVersion.findFirst({
+          where: { fileId },
+          orderBy: { version: 'desc' }
+        });
+
+        if (latestVersion && data.clientCursor) {
+          const clientCursorDate = new Date(data.clientCursor);
+          if (latestVersion.createdAt > clientCursorDate && latestVersion.deviceId !== data.deviceId) {
+    
+            const conflictId = `CONF-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+            await db.conflict.create({
+              data: {
+                id: conflictId,
+                projectId,
+                fileId,
+                path: op.path,
+                baseVersionHash: latestVersion.hash,
+                incomingHash: op.hash,
+                deviceA: latestVersion.deviceId,
+                deviceB: data.deviceId,
+                status: 'UNRESOLVED'
+              }
+            });
+         
+            await db.syncOperation.update({
+              where: { id: syncOp.id },
+              data: { status: 'CONFLICT' }
+            });
+            continue; 
+          }
+        }
+
+    
         const file = await db.file.upsert({
           where: { id: fileId },
           create: {
@@ -112,7 +146,56 @@ export const processOperations = async (req: AuthRequest, res: Response, next: N
       results.push(syncOp.id);
     }
 
-    res.status(201).json({ success: true, processed: results.length });
+ 
+    if (results.length > 0) {
+      const snapshotId = `SNAP-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+      
+      const snapshot = await db.snapshot.create({
+        data: {
+          id: snapshotId,
+          projectId,
+          createdBy: req.user.id,
+        }
+      });
+
+ 
+      const activeFiles = await db.file.findMany({
+        where: { projectId, isDeleted: false },
+        include: { versions: { orderBy: { version: 'desc' }, take: 1 } }
+      });
+
+      const snapshotFiles = activeFiles.map(f => {
+        const latestVersion = f.versions[0];
+        return {
+          id: `SF-${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
+          snapshotId,
+          path: f.path,
+          hash: f.hash,
+          version: latestVersion ? latestVersion.version : 1
+        };
+      });
+
+      if (snapshotFiles.length > 0) {
+        await db.snapshotFile.createMany({ data: snapshotFiles });
+      }
+    }
+
+ 
+    if (results.length > 0) {
+      const { emitToProject } = await import('../../websocket/socket.js');
+      emitToProject(projectId, 'PROJECT_UPDATED', {
+        projectId,
+        deviceId: data.deviceId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Fetch any unresolved conflicts to return to the client
+    const conflicts = await db.conflict.findMany({
+      where: { projectId, status: 'UNRESOLVED' }
+    });
+
+    res.status(201).json({ success: true, processed: results.length, conflicts });
   } catch (err) {
     next(err);
   }
@@ -121,9 +204,9 @@ export const processOperations = async (req: AuthRequest, res: Response, next: N
 export const pullOperations = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { projectId } = req.params;
-    const { after } = req.query; // Timestamp cursor
+    const { after } = req.query; 
 
-    // Verify user is part of the workspace
+ 
     const project = await db.project.findUnique({ where: { id: projectId } });
     if (!project) return res.status(404).json({ error: { message: 'Project not found' } });
 
@@ -140,7 +223,7 @@ export const pullOperations = async (req: AuthRequest, res: Response, next: Next
     const operations = await db.syncOperation.findMany({
       where: whereClause,
       orderBy: { createdAt: 'asc' },
-      take: 1000 // Limit to prevent massive payloads
+      take: 1000 
     });
 
     res.json({ operations });
