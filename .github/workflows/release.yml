@@ -1,0 +1,48 @@
+name: Publish Release Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release-desktop:
+    name: Build & Release Desktop (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build and Package Desktop Application
+        run: npm run package -w apps/desktop
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            apps/desktop/dist-package/*.exe
+            apps/desktop/dist-package/*.dmg
+            apps/desktop/dist-package/*.AppImage
+            apps/desktop/dist-package/*.blockmap
+            apps/desktop/dist-package/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
