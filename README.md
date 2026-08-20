@@ -21,6 +21,7 @@ The project is structured as a monorepo containing the following components:
 - **`packages/cli/`**: The developer Command Line Interface (`dev-sync`) for quick terminal access.
 - **`packages/`**: Shared TypeScript packages and utilities.
 - **`tunnel/`**: Configuration files for secure reverse tunnels (Cloudflare Tunnel).
+- **[`architecture_diagrams.md`](file:///d:/DevSync/architecture_diagrams.md)**: Visual flowchart diagrams (using Mermaid) detailing system architecture, synchronization propagation loop, conflict detection, and device handshake flows.
 
 ---
 
