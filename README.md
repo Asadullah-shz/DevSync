@@ -91,6 +91,20 @@ docker-compose -f docker-compose.tunnel.yml up -d
 
 ---
 
+## 🗺️ Roadmap / Future Scope
+
+We have completed the core features (MVP and V2 features), but we have exciting plans for the future of DevSync! These V3 goals are open for anyone to contribute to:
+
+- [ ] **S3-Compatible Storage**: Support for AWS S3, MinIO, or other S3-compatible cloud storage backends.
+- [ ] **Server Clustering**: Distributed server setups for high availability and load balancing.
+- [ ] **Distributed Synchronization**: Optimization for cross-region data replication.
+- [ ] **Advanced Team Policies**: Granular user access controls, folder-level permissions, and organizational policies.
+- [ ] **Mobile Monitoring App**: A companion mobile app to check sync status, storage health, and logs on the go.
+- [ ] **Enterprise SSO**: Secure login integration via SAML / OIDC.
+- [ ] **Automatic Disaster Recovery**: Failover scripts and automated replication management.
+
+---
+
 ## 🤝 Contributing
 
 DevSync is an open-source project and we welcome contributions from anyone! Here is how you can help:
